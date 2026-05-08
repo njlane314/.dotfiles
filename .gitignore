@@ -1,0 +1,9 @@
+vim/.vim/autoload/plug.vim
+vim/.vim/plugged/*
+!vim/.vim/plugged/.gitkeep
+vim/.vim/undo/*
+!vim/.vim/undo/.gitkeep
+vim/.vim/backup/*
+!vim/.vim/backup/.gitkeep
+vim/.vim/swap/*
+!vim/.vim/swap/.gitkeep
