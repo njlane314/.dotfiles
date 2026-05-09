@@ -128,8 +128,8 @@ nnoremap <C-l> <C-w>l
 let g:ale_linters_explicit = 1
 
 let g:ale_linters = {
-\   'c': ['clangd', 'clangtidy', 'cppcheck'],
-\   'cpp': ['clangd', 'clangtidy', 'cppcheck'],
+\   'c': ['clangd'],
+\   'cpp': ['clangd'],
 \}
 
 let g:ale_fixers = {
@@ -143,8 +143,8 @@ let g:ale_fix_on_save = 0
 let g:ale_completion_enabled = 1
 let g:ale_completion_autoimport = 1
 
-let g:ale_c_clangd_options = '--compile-commands-dir=build'
-let g:ale_cpp_clangd_options = '--compile-commands-dir=build'
+let g:ale_c_clangd_options = '--enable-config'
+let g:ale_cpp_clangd_options = '--enable-config'
 
 let g:ale_c_clangtidy_options = '--extra-arg=-std=c17'
 let g:ale_cpp_clangtidy_options = '--extra-arg=-std=c++20'

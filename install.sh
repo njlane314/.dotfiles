@@ -16,7 +16,7 @@ EOF
 fi
 
 if (($# == 0)); then
-  packages=(vim cpp emacs tmux editorconfig)
+  packages=(vim cpp emacs tmux editorconfig aerospace)
 else
   packages=("$@")
 fi

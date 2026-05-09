@@ -2,12 +2,19 @@
 set -euo pipefail
 
 if command -v brew >/dev/null 2>&1; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    brew tap nikitabobko/tap
+    brew install --cask nikitabobko/tap/aerospace
+  fi
+
   brew install \
     cppcheck \
     emacs \
+    htop \
     llvm \
     ripgrep \
     stow \
+    tokei \
     tmux \
     vim
   exit 0
@@ -22,9 +29,11 @@ if command -v apt-get >/dev/null 2>&1; then
     clangd \
     cppcheck \
     emacs \
+    htop \
     make \
     ripgrep \
     stow \
+    tokei \
     tmux \
     vim
   exit 0
@@ -34,6 +43,7 @@ cat >&2 <<'EOF'
 No supported package manager found.
 
 Install the required packages manually:
-  stow vim emacs tmux llvm/clang ripgrep cppcheck make
+  stow vim emacs tmux htop tokei llvm/clang ripgrep cppcheck make
+  nikitabobko/tap/aerospace (macOS/Homebrew)
 EOF
 exit 1
