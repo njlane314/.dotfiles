@@ -16,6 +16,10 @@ Stow-managed dotfiles. Each top-level directory is a package that maps into
 │   ├── .bash_profile
 │   ├── .bashrc
 │   └── .config/bash/
+│       ├── aliases.bash
+│       ├── functions.bash
+│       ├── local.bash.example
+│       └── prompt.bash
 ├── git/
 │   └── .config/git/config
 ├── cpp/
@@ -217,13 +221,12 @@ The `bash` package provides:
 ~/.bashrc
 ~/.config/bash/aliases.bash
 ~/.config/bash/functions.bash
-~/.config/bash/init.bash
-~/.config/bash/tools.bash
+~/.config/bash/local.bash.example
+~/.config/bash/prompt.bash
 ```
 
-The shell setup distinguishes macOS and Linux when initializing Homebrew paths
-and when commands use different distro names, such as `batcat` and `fdfind` on
-some Linux systems.
+Put machine-specific shell setup in `~/.config/bash/local.bash`. That file is
+ignored by Git.
 
 ## Git
 

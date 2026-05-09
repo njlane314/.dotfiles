@@ -1,0 +1,15 @@
+# ~/.config/bash/local.bash
+
+# Machine-specific Bash config belongs in local.bash.
+# This example is tracked; local.bash is ignored.
+
+# eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# export PYENV_ROOT="$HOME/.pyenv"
+# export PATH="$PYENV_ROOT/bin:$PATH"
+# command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init --path)"
+# command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init -)"
+
+# export PATH="$PATH:$HOME/.local/bin"
+# export PATH="$HOME/.foundry/bin:$PATH"
+# [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"

@@ -1,5 +1,3 @@
 # ~/.bash_profile
 
-if [[ -r "$HOME/.bashrc" ]]; then
-  . "$HOME/.bashrc"
-fi
+[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
