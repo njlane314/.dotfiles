@@ -2,11 +2,6 @@
 set -euo pipefail
 
 if command -v brew >/dev/null 2>&1; then
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    brew tap nikitabobko/tap
-    brew install --cask nikitabobko/tap/aerospace
-  fi
-
   brew install \
     cppcheck \
     emacs \
@@ -44,6 +39,5 @@ No supported package manager found.
 
 Install the required packages manually:
   stow vim emacs tmux htop tokei llvm/clang ripgrep cppcheck make
-  nikitabobko/tap/aerospace (macOS/Homebrew)
 EOF
 exit 1

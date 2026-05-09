@@ -7,8 +7,6 @@ Stow-managed dotfiles. Each top-level directory is a package that maps into
 .
 ├── Makefile
 ├── README.md
-├── aerospace/
-│   └── .aerospace.toml
 ├── bootstrap/
 │   ├── bootstrap.sh
 │   └── install.sh
@@ -40,8 +38,7 @@ Install OS packages:
 ```
 
 This installs the external packages used by these dotfiles, including Vim,
-Emacs, tmux, htop, tokei, AeroSpace on macOS, C/C++ tooling, ripgrep, and GNU
-Stow.
+Emacs, tmux, htop, tokei, C/C++ tooling, ripgrep, and GNU Stow.
 
 Install all packages:
 
@@ -63,13 +60,12 @@ Install selected packages:
 ./install.sh emacs
 ./install.sh tmux
 ./install.sh editorconfig
-./install.sh aerospace
 ```
 
 The bootstrap install wrapper is equivalent:
 
 ```sh
-./bootstrap/install.sh vim cpp emacs aerospace
+./bootstrap/install.sh vim cpp emacs
 ```
 
 The installer uses GNU Stow, so install it first if needed:
@@ -167,41 +163,6 @@ jk              leave insert mode
 [d              previous diagnostic
 ]d              next diagnostic
 ```
-
-```text
-aerospace
-
-alt-h           focus left
-alt-j           focus down
-alt-k           focus up
-alt-l           focus right
-
-alt-shift-h     move left
-alt-shift-j     move down
-alt-shift-k     move up
-alt-shift-l     move right
-
-alt-1..9        switch workspace
-alt-shift-1..9  move window to workspace
-alt-slash       cycle tile layout
-alt-comma       cycle accordion layout
-alt-f           fullscreen
-alt-shift-space toggle floating/tiling
-alt-r           resize mode
-alt-shift-c     reload config
-
-resize mode: h/j/k/l resize, esc/enter return to main
-```
-
-## AeroSpace
-
-The `aerospace` package provides:
-
-```text
-~/.aerospace.toml
-```
-
-AeroSpace is installed by `./bootstrap/bootstrap.sh` on macOS with Homebrew.
 
 ## Vim
 

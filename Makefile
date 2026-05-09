@@ -1,4 +1,4 @@
-PACKAGES ?= vim cpp emacs tmux editorconfig aerospace
+PACKAGES ?= vim cpp emacs tmux editorconfig
 
 .PHONY: install
 install:
