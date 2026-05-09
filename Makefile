@@ -1,4 +1,4 @@
-PACKAGES ?= bash git vim cpp emacs tmux editorconfig
+PACKAGES ?= bash git vim cpp emacs tmux editorconfig terminal
 
 .PHONY: install
 install:

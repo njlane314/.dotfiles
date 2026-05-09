@@ -32,6 +32,10 @@ Stow-managed dotfiles. Each top-level directory is a package that maps into
 │   └── .emacs.d/
 │       ├── early-init.el
 │       └── init.el
+├── terminal/
+│   └── .config/terminal/
+│       ├── apply
+│       └── style
 ├── tmux/
 │   └── .tmux.conf
 └── vim/
@@ -75,6 +79,7 @@ Install selected packages:
 ./install.sh emacs
 ./install.sh tmux
 ./install.sh editorconfig
+./install.sh terminal
 ```
 
 The bootstrap install wrapper is equivalent:
@@ -227,6 +232,22 @@ The `bash` package provides:
 
 Put machine-specific shell setup in `~/.config/bash/local.bash`. That file is
 ignored by Git.
+
+## Terminal
+
+The `terminal` package provides:
+
+```text
+~/.config/terminal/style
+~/.config/terminal/apply
+```
+
+On macOS, `style` contains the Apple Terminal profile name to use. The default
+is `Basic`, the standard white Terminal style. Apply it with:
+
+```sh
+~/.config/terminal/apply
+```
 
 ## Git
 

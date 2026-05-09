@@ -16,7 +16,7 @@ EOF
 fi
 
 if (($# == 0)); then
-  packages=(bash git vim cpp emacs tmux editorconfig)
+  packages=(bash git vim cpp emacs tmux editorconfig terminal)
 else
   packages=("$@")
 fi
@@ -70,6 +70,10 @@ fi
 
 if [[ " ${packages[*]} " == *" emacs "* ]]; then
   mkdir -p "$target_dir/.emacs.d"/{elpa,var/auto-save,var/backup,var/lock}
+fi
+
+if has_package terminal && [[ "$(uname -s)" == Darwin && "$target_dir" == "$HOME" ]]; then
+  "$target_dir/.config/terminal/apply"
 fi
 
 printf 'Installed packages: %s\n' "${packages[*]}"

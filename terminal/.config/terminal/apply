@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+style_file="${1:-$HOME/.config/terminal/style}"
+
+if [[ "$(uname -s)" != Darwin ]]; then
+  printf 'terminal style applies only to macOS Terminal.app\n' >&2
+  exit 0
+fi
+
+if [[ ! -f "$style_file" ]]; then
+  printf 'missing terminal style file: %s\n' "$style_file" >&2
+  exit 1
+fi
+
+IFS= read -r style <"$style_file"
+if [[ -z "$style" ]]; then
+  printf 'empty terminal style file: %s\n' "$style_file" >&2
+  exit 1
+fi
+
+osascript - "$style" <<'APPLESCRIPT'
+on run argv
+  set styleName to item 1 of argv
+  tell application "Terminal"
+    if not (exists settings set styleName) then
+      error "Terminal profile not found: " & styleName
+    end if
+    set default settings to settings set styleName
+    set startup settings to settings set styleName
+    if (count of windows) > 0 then
+      set current settings of selected tab of front window to settings set styleName
+    end if
+  end tell
+end run
+APPLESCRIPT
+
+printf 'Terminal style: %s\n' "$style"
