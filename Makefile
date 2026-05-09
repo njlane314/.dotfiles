@@ -1,4 +1,4 @@
-PACKAGES ?= vim cpp
+PACKAGES ?= vim cpp emacs
 
 .PHONY: install
 install:
@@ -12,3 +12,8 @@ vim-plug:
 .PHONY: vim-plugins
 vim-plugins:
 	vim +PlugInstall +qall
+
+.PHONY: emacs-packages
+emacs-packages:
+	emacs --batch -l "$$HOME/.emacs.d/init.el" \
+		--eval '(message "Emacs packages installed")'

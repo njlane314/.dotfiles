@@ -16,13 +16,13 @@ EOF
 fi
 
 if (($# == 0)); then
-  packages=(vim cpp)
+  packages=(vim cpp emacs)
 else
   packages=("$@")
 fi
 
 cd "$repo_dir"
-stow --target="$target_dir" --restow "${packages[@]}"
+stow --target="$target_dir" --restow --no-folding "${packages[@]}"
 
 if [[ " ${packages[*]} " == *" vim "* ]]; then
   mkdir -p "$target_dir/.vim"/{autoload,plugged,undo,backup,swap,after/ftplugin}
@@ -30,6 +30,10 @@ fi
 
 if [[ " ${packages[*]} " == *" cpp "* ]]; then
   mkdir -p "$target_dir/.cache/gdb"
+fi
+
+if [[ " ${packages[*]} " == *" emacs "* ]]; then
+  mkdir -p "$target_dir/.emacs.d"/{elpa,var/auto-save,var/backup,var/lock}
 fi
 
 printf 'Installed packages: %s\n' "${packages[*]}"
