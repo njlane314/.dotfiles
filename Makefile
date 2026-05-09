@@ -1,4 +1,4 @@
-PACKAGES ?= vim cpp emacs
+PACKAGES ?= vim cpp emacs tmux editorconfig
 
 .PHONY: install
 install:
@@ -17,3 +17,7 @@ vim-plugins:
 emacs-packages:
 	emacs --batch -l "$$HOME/.emacs.d/init.el" \
 		--eval '(message "Emacs packages installed")'
+
+.PHONY: tmux-reload
+tmux-reload:
+	tmux source-file "$$HOME/.tmux.conf"
