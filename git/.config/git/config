@@ -1,0 +1,27 @@
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+
+[merge]
+	conflictstyle = zdiff3
+
+[diff]
+	colorMoved = default
+
+[alias]
+	s = status --short --branch
+	co = switch
+	cob = switch -c
+	br = branch
+	ci = commit
+	amend = commit --amend --no-edit
+	lg = log --oneline --decorate --graph --all
+	unstage = restore --staged
+	undo = reset --soft HEAD~1

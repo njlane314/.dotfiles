@@ -7,10 +7,17 @@ Stow-managed dotfiles. Each top-level directory is a package that maps into
 .
 ├── Makefile
 ├── README.md
+├── Brewfile
 ├── bootstrap/
 │   ├── bootstrap.sh
 │   └── install.sh
 ├── install.sh
+├── bash/
+│   ├── .bash_profile
+│   ├── .bashrc
+│   └── .config/bash/
+├── git/
+│   └── .config/git/config
 ├── cpp/
 │   ├── .clang-format
 │   ├── .clang-tidy
@@ -37,8 +44,10 @@ Install OS packages:
 ./bootstrap/bootstrap.sh
 ```
 
-This installs the external packages used by these dotfiles, including Vim,
-Emacs, tmux, htop, tokei, C/C++ tooling, ripgrep, and GNU Stow.
+This uses the repo `Brewfile` with Homebrew on macOS or Linuxbrew on Linux. On
+Linux systems without Linuxbrew, it falls back to apt and installs the packages
+available from the distro repositories, using Linux package names such as
+`fd-find` and `bat`.
 
 Install all packages:
 
@@ -56,6 +65,8 @@ Install selected packages:
 
 ```sh
 ./install.sh vim
+./install.sh bash
+./install.sh git
 ./install.sh cpp
 ./install.sh emacs
 ./install.sh tmux
@@ -196,6 +207,34 @@ For best C/C++ results, generate `compile_commands.json` in each project. With C
 ```sh
 cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
+
+## Shell
+
+The `bash` package provides:
+
+```text
+~/.bash_profile
+~/.bashrc
+~/.config/bash/aliases.bash
+~/.config/bash/functions.bash
+~/.config/bash/init.bash
+~/.config/bash/tools.bash
+```
+
+The shell setup distinguishes macOS and Linux when initializing Homebrew paths
+and when commands use different distro names, such as `batcat` and `fdfind` on
+some Linux systems.
+
+## Git
+
+The `git` package provides:
+
+```text
+~/.config/git/config
+```
+
+Git identity can stay in `~/.gitconfig`; the managed config adds pager, delta,
+diff, merge, and short aliases.
 
 ## Emacs
 

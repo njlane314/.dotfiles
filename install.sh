@@ -16,9 +16,45 @@ EOF
 fi
 
 if (($# == 0)); then
-  packages=(vim cpp emacs tmux editorconfig)
+  packages=(bash git vim cpp emacs tmux editorconfig)
 else
   packages=("$@")
+fi
+
+has_package() {
+  local package
+  for package in "${packages[@]}"; do
+    [[ "$package" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+backup_conflict() {
+  local rel="$1"
+  local source="$repo_dir/$2"
+  local target="$target_dir/$rel"
+  local backup
+
+  [[ -e "$target" || -L "$target" ]] || return 0
+  [[ -L "$target" ]] && return 0
+
+  if [[ -f "$target" && -f "$source" ]] && cmp -s "$target" "$source"; then
+    rm "$target"
+    return 0
+  fi
+
+  backup="$target.before-dotfiles-$(date +%Y%m%d%H%M%S)"
+  mv "$target" "$backup"
+  printf 'Backed up %s to %s\n' "$target" "$backup"
+}
+
+if has_package bash; then
+  backup_conflict .bashrc bash/.bashrc
+  backup_conflict .bash_profile bash/.bash_profile
+fi
+
+if has_package git; then
+  backup_conflict .config/git/config git/.config/git/config
 fi
 
 cd "$repo_dir"
