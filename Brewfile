@@ -2,6 +2,7 @@
 
 brew "git"
 brew "gh"
+brew "stow"
 
 # search / filesystem
 brew "ripgrep"

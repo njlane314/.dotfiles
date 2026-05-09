@@ -36,6 +36,10 @@ Stow-managed dotfiles. Each top-level directory is a package that maps into
 │   └── .config/terminal/
 │       ├── apply
 │       └── style
+├── wallpaper/
+│   └── .config/wallpaper/
+│       ├── apply
+│       └── desktop.webp
 ├── tmux/
 │   └── .tmux.conf
 └── vim/
@@ -80,6 +84,7 @@ Install selected packages:
 ./install.sh tmux
 ./install.sh editorconfig
 ./install.sh terminal
+./install.sh wallpaper
 ```
 
 The bootstrap install wrapper is equivalent:
@@ -248,6 +253,18 @@ is `Basic`, the standard white Terminal style. Apply it with:
 ```sh
 ~/.config/terminal/apply
 ```
+
+## Wallpaper
+
+The `wallpaper` package provides:
+
+```text
+~/.config/wallpaper/desktop.webp
+~/.config/wallpaper/apply
+```
+
+On macOS, `apply` sets `desktop.webp` as the picture for every Desktop. The
+bootstrap script also applies it during first laptop setup.
 
 ## Git
 

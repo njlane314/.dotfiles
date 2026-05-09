@@ -16,7 +16,7 @@ EOF
 fi
 
 if (($# == 0)); then
-  packages=(bash git vim cpp emacs tmux editorconfig terminal)
+  packages=(bash git vim cpp emacs tmux editorconfig terminal wallpaper)
 else
   packages=("$@")
 fi
@@ -74,6 +74,10 @@ fi
 
 if has_package terminal && [[ "$(uname -s)" == Darwin && "$target_dir" == "$HOME" ]]; then
   "$target_dir/.config/terminal/apply"
+fi
+
+if has_package wallpaper && [[ "$(uname -s)" == Darwin && "$target_dir" == "$HOME" ]]; then
+  "$target_dir/.config/wallpaper/apply"
 fi
 
 printf 'Installed packages: %s\n' "${packages[*]}"

@@ -4,8 +4,19 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 os="$(uname -s)"
 
+apply_wallpaper() {
+  local apply="$repo_dir/wallpaper/.config/wallpaper/apply"
+  local image="$repo_dir/wallpaper/.config/wallpaper/desktop.webp"
+
+  [[ "$os" == Darwin ]] || return 0
+  [[ -x "$apply" && -f "$image" ]] || return 0
+
+  "$apply" "$image"
+}
+
 if command -v brew >/dev/null 2>&1; then
   brew bundle --file="$repo_dir/Brewfile"
+  apply_wallpaper
   exit 0
 fi
 
@@ -22,12 +33,14 @@ fi
 if [[ "$os" == Linux && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
   brew bundle --file="$repo_dir/Brewfile"
+  apply_wallpaper
   exit 0
 fi
 
 if [[ "$os" == Linux && -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
   brew bundle --file="$repo_dir/Brewfile"
+  apply_wallpaper
   exit 0
 fi
 
@@ -95,6 +108,7 @@ if [[ "$os" == Linux ]] && command -v apt-get >/dev/null 2>&1; then
 For the full tool set on Linux, install Linuxbrew and rerun this bootstrap.
 EOF
   fi
+  apply_wallpaper
   exit 0
 fi
 

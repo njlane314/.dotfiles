@@ -1,4 +1,4 @@
-PACKAGES ?= bash git vim cpp emacs tmux editorconfig terminal
+PACKAGES ?= bash git vim cpp emacs tmux editorconfig terminal wallpaper
 
 .PHONY: install
 install:
