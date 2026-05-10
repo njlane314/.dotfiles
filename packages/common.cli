@@ -1,0 +1,18 @@
+# OS-neutral tools expected on every machine using these dotfiles.
+git
+gh
+stow
+make
+vim
+tmux
+ripgrep
+fd
+fzf
+bat
+eza
+zoxide
+direnv
+starship
+jq
+yq
+httpie

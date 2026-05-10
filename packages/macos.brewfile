@@ -3,6 +3,8 @@
 brew "git"
 brew "gh"
 brew "stow"
+brew "vim"
+brew "tmux"
 
 # search / filesystem
 brew "ripgrep"
@@ -47,3 +49,8 @@ brew "tealdeer"
 # language/runtime management
 brew "mise"
 brew "uv"
+
+# editors / language tooling
+brew "emacs"
+brew "llvm"
+brew "cppcheck"

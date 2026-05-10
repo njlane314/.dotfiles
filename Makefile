@@ -1,5 +1,12 @@
 PACKAGES ?= bash git vim cpp emacs tmux editorconfig terminal wallpaper
 
+.PHONY: packages
+packages:
+	./bootstrap/bootstrap.sh
+
+.PHONY: bootstrap
+bootstrap: packages
+
 .PHONY: install
 install:
 	./install.sh $(PACKAGES)

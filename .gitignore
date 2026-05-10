@@ -8,3 +8,5 @@ vim/.vim/backup/*
 vim/.vim/swap/*
 !vim/.vim/swap/.gitkeep
 bash/.config/bash/local.bash
+repos/*
+!repos/README.md

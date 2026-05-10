@@ -1,0 +1,18 @@
+# Development and repository work.
+clang
+clangd
+clang-format
+clang-tidy
+cppcheck
+git-delta
+lazygit
+difftastic
+tokei
+hyperfine
+just
+watchexec
+entr
+sd
+tealdeer
+mise
+uv

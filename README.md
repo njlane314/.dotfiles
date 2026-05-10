@@ -1,16 +1,33 @@
 # Dotfiles
 
-Stow-managed dotfiles. Each top-level directory is a package that maps into
-`$HOME`.
+Stow-managed dotfiles. Most top-level directories are Stow packages that map
+into `$HOME`; `bootstrap/`, `packages/`, and `templates/` define machine and
+project setup.
 
 ```text
 .
 ├── Makefile
 ├── README.md
-├── Brewfile
 ├── bootstrap/
 │   ├── bootstrap.sh
 │   └── install.sh
+├── packages/
+│   ├── common.cli
+│   ├── work.cli
+│   ├── personal.cli
+│   ├── macos.brewfile
+│   ├── linux.apt
+│   └── linux.pacman
+├── templates/
+│   ├── python/
+│   ├── node/
+│   ├── rust/
+│   ├── go/
+│   └── shell/
+├── repos/
+│   ├── README.md
+│   ├── stdmk/
+│   └── mkskel/
 ├── install.sh
 ├── bash/
 │   ├── .bash_profile
@@ -56,10 +73,50 @@ Install OS packages:
 ./bootstrap/bootstrap.sh
 ```
 
-This uses the repo `Brewfile` with Homebrew on macOS or Linuxbrew on Linux. On
-Linux systems without Linuxbrew, it falls back to apt and installs the packages
-available from the distro repositories, using Linux package names such as
-`fd-find` and `bat`.
+The desired CLI state is explicit in `packages/`:
+
+```text
+packages/common.cli      baseline tools
+packages/work.cli        development tools
+packages/personal.cli    interactive personal tools
+packages/macos.brewfile  Homebrew / Linuxbrew package manifest
+packages/linux.apt       Debian / Ubuntu package manifest
+packages/linux.pacman    Arch Linux package manifest
+```
+
+The bootstrap script uses the matching package-manager manifest for the current
+machine. Linux package managers install the packages available from their
+repositories and report names they cannot resolve.
+
+The same bootstrap is available through Make:
+
+```sh
+make packages
+```
+
+Project templates are plain directories:
+
+```sh
+cp -R templates/python ~/programs/new-python-project
+```
+
+Available templates:
+
+```text
+templates/python
+templates/node
+templates/rust
+templates/go
+templates/shell
+```
+
+Related project skeleton repos live under `repos/` as independent nested Git
+repositories:
+
+- `repos/stdmk`: standard Unix-shaped repository surface: `./configure`,
+  `make`, `make check`, `make install`, `make clean`, and `make distclean`.
+- `repos/mkskel`: language-extensible coding workstation with short make
+  commands, source/test separation, cached builds, and bundle/run helpers.
 
 Install all packages:
 
@@ -209,12 +266,11 @@ make vim-plugins
 Install the external tools Vim calls:
 
 ```sh
-# Debian / Ubuntu
-sudo apt install clang clangd clang-format clang-tidy cppcheck make
-
-# macOS with Homebrew
-brew install llvm cppcheck
+./bootstrap/bootstrap.sh
 ```
+
+Those tools are listed in `packages/work.cli` and resolved through the
+package-manager manifests.
 
 For best C/C++ results, generate `compile_commands.json` in each project. With CMake:
 
