@@ -119,19 +119,111 @@ done < <(
 )
 pass "shell files parse with Bash"
 
+[[ -z "$(find "$repo_dir" -mindepth 2 -name .git -print -quit)" ]] ||
+  fail "a nested Git repository remains inside the dotfiles checkout"
+for moved_path in bootstrap templates terminal wallpaper repos; do
+  [[ ! -e "$repo_dir/$moved_path" ]] ||
+    fail "out-of-scope path remains in dotfiles: $moved_path"
+done
+pass "repository contains only home configuration responsibilities"
+
 "$repo_dir/install.sh" --help >"$test_root/install-help.out"
 grep -F -- '--dry-run' "$test_root/install-help.out" >/dev/null ||
   fail "installer help does not describe dry runs"
-"$repo_dir/bootstrap/bootstrap.sh" --help >"$test_root/bootstrap-help.out"
-grep -F -- '--dry-run' "$test_root/bootstrap-help.out" >/dev/null ||
-  fail "bootstrap help does not describe dry runs"
+"$repo_dir/migrations/2026-07-xdg-state.sh" --help \
+  >"$test_root/migration-help.out"
 
 dry_run_target="$test_root/dry-run-home"
 DOTFILES_TARGET="$dry_run_target" "$repo_dir/install.sh" --dry-run bash \
   >"$test_root/install-dry-run.out"
 [[ ! -e "$dry_run_target" ]] ||
   fail "installer dry run changed a missing target"
-pass "installer and bootstrap help work, and install dry runs are inert"
+pass "installer and migration help work, and install dry runs are inert"
+
+migration_target="$test_root/migration-home"
+mkdir -p "$migration_target/.vim/undo"
+printf 'legacy undo\n' >"$migration_target/.vim/undo/state"
+DOTFILES_TARGET="$migration_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" --dry-run \
+  >"$test_root/migration-dry-run.out"
+[[ -f "$migration_target/.vim/undo/state" ]] ||
+  fail "migration dry run moved legacy Vim state"
+[[ ! -e "$migration_target/.local/state/vim/undo" ]] ||
+  fail "migration dry run created an XDG state directory"
+DOTFILES_TARGET="$migration_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" \
+  >"$test_root/migration.out"
+grep -Fx 'legacy undo' "$migration_target/.local/state/vim/undo/state" \
+  >/dev/null || fail "one-time migration did not preserve Vim undo state"
+pass "versioned migration previews safely and preserves legacy Vim state"
+
+migration_conflict_target="$test_root/migration-conflict-home"
+mkdir -p \
+  "$migration_conflict_target/.vim/autoload" \
+  "$migration_conflict_target/.vim/swap" \
+  "$migration_conflict_target/.cache/vim/swap"
+printf 'must stay put\n' >"$migration_conflict_target/.vim/autoload/state"
+printf 'source conflict\n' >"$migration_conflict_target/.vim/swap/source"
+printf 'destination conflict\n' \
+  >"$migration_conflict_target/.cache/vim/swap/destination"
+if DOTFILES_TARGET="$migration_conflict_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" \
+  >"$test_root/migration-conflict.out" 2>&1
+then
+  fail "migration merged two non-empty state directories"
+fi
+[[ -f "$migration_conflict_target/.vim/autoload/state" ]] ||
+  fail "migration moved state before completing its preflight"
+[[ ! -e "$migration_conflict_target/.local/share/vim/autoload" ]] ||
+  fail "failed migration left partially moved Vim state"
+
+migration_ancestor_target="$test_root/migration-ancestor-home"
+mkdir -p \
+  "$migration_ancestor_target/.vim/autoload" \
+  "$migration_ancestor_target/.vim/undo" \
+  "$migration_ancestor_target/.local"
+printf 'must also stay put\n' \
+  >"$migration_ancestor_target/.vim/autoload/state"
+printf 'legacy undo\n' >"$migration_ancestor_target/.vim/undo/state"
+printf 'blocks the state root\n' >"$migration_ancestor_target/.local/state"
+if DOTFILES_TARGET="$migration_ancestor_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" \
+  >"$test_root/migration-ancestor.out" 2>&1
+then
+  fail "migration ignored a non-directory destination ancestor"
+fi
+[[ -f "$migration_ancestor_target/.vim/autoload/state" ]] ||
+  fail "migration moved state before validating destination ancestors"
+[[ -f "$migration_ancestor_target/.vim/undo/state" ]] ||
+  fail "failed destination validation moved legacy undo state"
+[[ ! -e "$migration_ancestor_target/.local/share/vim/autoload" ]] ||
+  fail "destination validation left partially moved Vim state"
+pass "migration preflights every Vim state move before changing the target"
+
+folded_config_target="$test_root/migration-folded-config-home"
+mkdir -p "$folded_config_target"
+ln -s "$repo_dir/bash/.config" "$folded_config_target/.config"
+DOTFILES_TARGET="$folded_config_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" --dry-run \
+  >"$test_root/migration-folded-config-dry-run.out"
+[[ -L "$folded_config_target/.config" ]] ||
+  fail "migration dry run unfolded the legacy config link"
+DOTFILES_TARGET="$folded_config_target" \
+  "$repo_dir/migrations/2026-07-xdg-state.sh" \
+  >"$test_root/migration-folded-config.out"
+[[ ! -L "$folded_config_target/.config" ]] ||
+  fail "migration left the legacy folded config link in place"
+if [[ -f "$repo_dir/bash/.config/bash/local.bash" ]]; then
+  cmp -s "$repo_dir/bash/.config/bash/local.bash" \
+    "$folded_config_target/.config/bash/local.bash" ||
+    fail "migration did not preserve local.bash while unfolding config"
+  [[ ! -L "$folded_config_target/.config/bash/local.bash" ]] ||
+    fail "migration preserved local.bash as another managed link"
+else
+  [[ ! -e "$folded_config_target/.config/bash/local.bash" ]] ||
+    fail "migration invented a machine-local Bash file"
+fi
+pass "migration unfolds legacy config with or without machine-local state"
 
 target_dir="$test_root/home"
 DOTFILES_TARGET="$target_dir" "$repo_dir/install.sh" >"$test_root/install.out" 2>&1
@@ -182,162 +274,6 @@ done < <(find "$target_dir" -type l -print)
 DOTFILES_TARGET="$target_dir" "$repo_dir/install.sh" >"$test_root/reinstall.out" 2>&1
 pass "clean and repeated installs are isolated and idempotent"
 
-migration_repo="$test_root/migration-repo"
-mkdir -p "$migration_repo/packages" "$migration_repo/vim/.vim"
-cp "$repo_dir/install.sh" "$migration_repo/install.sh"
-cp "$repo_dir/packages/stow" "$migration_repo/packages/stow"
-cp -R "$repo_dir/bash" "$migration_repo/bash"
-cp -R "$repo_dir/git" "$migration_repo/git"
-cp "$repo_dir/vim/.vimrc" "$migration_repo/vim/.vimrc"
-cp "$repo_dir/vim/.stow-local-ignore" "$migration_repo/vim/.stow-local-ignore"
-cp -R "$repo_dir/vim/.vim/after" "$migration_repo/vim/.vim/after"
-printf 'synthetic local config\n' \
-  >"$migration_repo/bash/.config/bash/local.bash"
-for runtime_dir in autoload plugged undo backup swap; do
-  mkdir -p "$migration_repo/vim/.vim/$runtime_dir"
-  printf '%s state\n' "$runtime_dir" \
-    >"$migration_repo/vim/.vim/$runtime_dir/state"
-done
-
-isolated_vim_dir="$test_root/isolated-vim"
-DOTFILES_TARGET="$isolated_vim_dir" "$migration_repo/install.sh" vim \
-  >"$test_root/isolated-vim.out" 2>&1
-DOTFILES_TARGET="$isolated_vim_dir" "$migration_repo/install.sh" bash \
-  >"$test_root/isolated-bash.out" 2>&1
-for runtime_dir in autoload plugged undo backup swap; do
-  [[ -f "$migration_repo/vim/.vim/$runtime_dir/state" ]] ||
-    fail "alternate install moved checkout Vim state: $runtime_dir"
-done
-[[ -z "$(find "$isolated_vim_dir" -type f -name state -print -quit)" ]] ||
-  fail "alternate install copied checkout Vim state"
-[[ -f "$migration_repo/bash/.config/bash/local.bash" ]] ||
-  fail "alternate install moved checkout Bash local config"
-[[ ! -e "$isolated_vim_dir/.config/bash/local.bash" ]] ||
-  fail "alternate install copied checkout Bash local config"
-pass "alternate installs cannot consume checkout-local state"
-
-legacy_bash_dir="$test_root/legacy-bash"
-mkdir -p "$legacy_bash_dir"
-legacy_bash_parent="$(cd -- "$legacy_bash_dir" && pwd -P)"
-migration_bash_source="$(cd -- "$migration_repo/bash/.config" && pwd -P)"
-legacy_bash_link="$(
-  perl -MFile::Spec -e 'print File::Spec->abs2rel($ARGV[0], $ARGV[1])' \
-    "$migration_bash_source" "$legacy_bash_parent"
-)"
-ln -s "$legacy_bash_link" "$legacy_bash_dir/.config"
-if ! HOME="$legacy_bash_dir" DOTFILES_TARGET="$legacy_bash_dir" \
-  "$migration_repo/install.sh" bash \
-  >"$test_root/legacy-bash.out" 2>&1
-then
-  cat "$test_root/legacy-bash.out" >&2
-  fail "legacy Bash migration failed"
-fi
-[[ -d "$legacy_bash_dir/.config" && ! -L "$legacy_bash_dir/.config" ]] ||
-  fail "a legacy folded config ancestor was not unfolded"
-grep -Fx "synthetic local config" \
-  "$legacy_bash_dir/.config/bash/local.bash" >/dev/null ||
-  fail "legacy machine-local Bash config was not preserved"
-pass "legacy Bash local config is unfolded without losing settings"
-
-legacy_vim_dir="$test_root/legacy-vim"
-mkdir -p "$legacy_vim_dir"
-legacy_vim_parent="$(cd -- "$legacy_vim_dir" && pwd -P)"
-migration_vim_source="$(cd -- "$migration_repo/vim/.vim" && pwd -P)"
-legacy_vim_link="$(
-  perl -MFile::Spec -e 'print File::Spec->abs2rel($ARGV[0], $ARGV[1])' \
-    "$migration_vim_source" "$legacy_vim_parent"
-)"
-ln -s "$legacy_vim_link" "$legacy_vim_dir/.vim"
-if ! HOME="$legacy_vim_dir" DOTFILES_TARGET="$legacy_vim_dir" \
-  "$migration_repo/install.sh" vim \
-  >"$test_root/legacy-vim.out" 2>&1
-then
-  cat "$test_root/legacy-vim.out" >&2
-  fail "legacy Vim migration failed"
-fi
-[[ -d "$legacy_vim_dir/.vim" && ! -L "$legacy_vim_dir/.vim" ]] ||
-  fail "a legacy folded Vim directory was not unfolded"
-for runtime_dir in autoload plugged undo backup swap; do
-  case "$runtime_dir" in
-    autoload | plugged)
-      runtime_target="$legacy_vim_dir/.local/share/vim/$runtime_dir"
-      ;;
-    undo)
-      runtime_target="$legacy_vim_dir/.local/state/vim/undo"
-      ;;
-    backup | swap)
-      runtime_target="$legacy_vim_dir/.cache/vim/$runtime_dir"
-      ;;
-  esac
-  grep -Fx "$runtime_dir state" "$runtime_target/state" >/dev/null ||
-    fail "legacy Vim $runtime_dir state was not preserved"
-  [[ ! -e "$legacy_vim_dir/.vim/$runtime_dir" &&
-    ! -L "$legacy_vim_dir/.vim/$runtime_dir" ]] ||
-    fail "legacy Vim $runtime_dir path was not removed"
-done
-pass "legacy Vim runtime state moves to XDG directories without data loss"
-
-legacy_local_vim_dir="$test_root/legacy-local-vim"
-mkdir -p "$legacy_local_vim_dir/.vim"
-for runtime_dir in autoload plugged undo backup swap; do
-  mkdir -p "$legacy_local_vim_dir/.vim/$runtime_dir"
-  printf '%s local state\n' "$runtime_dir" \
-    >"$legacy_local_vim_dir/.vim/$runtime_dir/state"
-done
-HOME="$legacy_local_vim_dir" DOTFILES_TARGET="$legacy_local_vim_dir" \
-  "$repo_dir/install.sh" vim \
-  >"$test_root/legacy-local-vim.out" 2>&1
-for runtime_dir in autoload plugged undo backup swap; do
-  case "$runtime_dir" in
-    autoload | plugged)
-      runtime_target="$legacy_local_vim_dir/.local/share/vim/$runtime_dir"
-      ;;
-    undo)
-      runtime_target="$legacy_local_vim_dir/.local/state/vim/undo"
-      ;;
-    backup | swap)
-      runtime_target="$legacy_local_vim_dir/.cache/vim/$runtime_dir"
-      ;;
-  esac
-  grep -Fx "$runtime_dir local state" "$runtime_target/state" >/dev/null ||
-    fail "local legacy Vim $runtime_dir state was not preserved"
-done
-pass "previous-release local Vim state moves to XDG directories"
-
-legacy_git_dir="$test_root/legacy-git"
-mkdir -p "$legacy_git_dir/.config"
-legacy_git_parent="$(cd -- "$legacy_git_dir/.config" && pwd -P)"
-migration_git_source="$(cd -- "$migration_repo/git/.config/git" && pwd -P)"
-legacy_git_link="$(
-  perl -MFile::Spec -e 'print File::Spec->abs2rel($ARGV[0], $ARGV[1])' \
-    "$migration_git_source" "$legacy_git_parent"
-)"
-ln -s "$legacy_git_link" "$legacy_git_dir/.config/git"
-if ! DOTFILES_TARGET="$legacy_git_dir" "$migration_repo/install.sh" git \
-  >"$test_root/legacy-git.out" 2>&1
-then
-  cat "$test_root/legacy-git.out" >&2
-  fail "folded Git migration failed"
-fi
-[[ -f "$migration_repo/git/.config/git/config" ]] ||
-  fail "installing through a folded Git directory deleted the source config"
-assert_link "$legacy_git_dir/.config/git/config"
-pass "folded Git config is unfolded without changing the source"
-
-dangling_vim_dir="$test_root/dangling-vim"
-mkdir -p "$dangling_vim_dir/.vim"
-ln -s "$test_root/missing-vim-swap" "$dangling_vim_dir/.vim/swap"
-if DOTFILES_TARGET="$dangling_vim_dir" "$repo_dir/install.sh" vim \
-  >"$test_root/dangling-vim.out" 2>&1
-then
-  fail "a dangling Vim runtime link unexpectedly installed"
-fi
-grep -F "Broken Vim runtime link" "$test_root/dangling-vim.out" >/dev/null ||
-  fail "a dangling Vim runtime link did not produce an actionable error"
-[[ ! -e "$dangling_vim_dir/.vimrc" ]] ||
-  fail "a dangling runtime link was detected only after Stow changed the target"
-pass "invalid Vim runtime links fail before Stow changes the target"
-
 ignore_probe="$test_root/ignore-probe"
 mkdir -p "$ignore_probe/source" "$ignore_probe/targets"
 for package in bash vim emacs git; do
@@ -362,8 +298,8 @@ if DOTFILES_TARGET="$target_dir" "$repo_dir/install.sh" vim "--target=$override_
 then
   fail "an option-like package argument was accepted"
 fi
-grep -F "Unknown dotfiles package" "$test_root/invalid-package.out" >/dev/null ||
-  fail "invalid package failure was not actionable"
+grep -F "Unknown option" "$test_root/invalid-package.out" >/dev/null ||
+  fail "invalid option failure was not actionable"
 [[ ! -e "$override_dir/.vimrc" ]] || fail "an argument overrode DOTFILES_TARGET"
 pass "package arguments cannot inject Stow options"
 
@@ -383,6 +319,55 @@ grep -Fx "blocking aliases" "$rollback_dir/.config/bash/aliases.bash" >/dev/null
 [[ -z "$(find "$rollback_dir" -name '.bashrc.before-dotfiles-*' -print -quit)" ]] ||
   fail "a failed install left a permanent backup"
 pass "failed installs roll back automatic conflict backups"
+
+interrupt_dir="$test_root/interrupted-install"
+interrupt_bin="$test_root/interrupted-install-bin"
+interrupt_tmp="$test_root/interrupted-install-tmp"
+mkdir -p "$interrupt_dir" "$interrupt_bin" "$interrupt_tmp"
+printf 'original bashrc\n' >"$interrupt_dir/.bashrc"
+cat >"$interrupt_bin/mv" <<'EOF'
+#!/usr/bin/env bash
+set -e
+"${DOTFILES_REAL_MV:?}" "$@"
+if [[ ! -e "${DOTFILES_INTERRUPT_MARKER:?}" ]]; then
+  : >"$DOTFILES_INTERRUPT_MARKER"
+  kill -TERM "$PPID"
+fi
+EOF
+chmod +x "$interrupt_bin/mv"
+if DOTFILES_REAL_MV="$(command -v mv)" \
+  DOTFILES_INTERRUPT_MARKER="$test_root/interrupted-install.marker" \
+  TMPDIR="$interrupt_tmp" \
+  PATH="$interrupt_bin:$PATH" \
+  DOTFILES_TARGET="$interrupt_dir" "$repo_dir/install.sh" bash \
+  >"$test_root/interrupted-install.out" 2>&1
+then
+  fail "installer ignored an interruption while staging a conflict"
+fi
+grep -Fx 'original bashrc' "$interrupt_dir/.bashrc" >/dev/null ||
+  fail "interrupted conflict staging stranded the original bashrc"
+[[ -z "$(find "$interrupt_dir" -name '.bashrc.before-dotfiles-*' \
+  -print -quit)" ]] || fail "interrupted install left a shell backup behind"
+[[ -z "$(find "$interrupt_tmp" -mindepth 1 -print -quit)" ]] ||
+  fail "interrupted install leaked its transaction directory"
+pass "interruptions during conflict staging restore the original file"
+
+state_failure_dir="$test_root/state-directory-failure"
+mkdir -p "$state_failure_dir"
+printf 'original bashrc\n' >"$state_failure_dir/.bashrc"
+printf 'blocks the XDG data root\n' >"$state_failure_dir/.local"
+if DOTFILES_TARGET="$state_failure_dir" "$repo_dir/install.sh" bash vim \
+  >"$test_root/state-directory-failure.out" 2>&1
+then
+  fail "installer ignored a blocked Vim state directory"
+fi
+grep -Fx 'original bashrc' "$state_failure_dir/.bashrc" >/dev/null ||
+  fail "state setup failure did not restore a staged shell conflict"
+[[ -z "$(find "$state_failure_dir" -name '.bashrc.before-dotfiles-*' \
+  -print -quit)" ]] || fail "state setup failure left a shell backup behind"
+[[ ! -e "$state_failure_dir/.vimrc" && ! -L "$state_failure_dir/.vimrc" ]] ||
+  fail "failed state setup left Vim configuration installed"
+pass "state-directory failures roll back conflicts before Stow changes the target"
 
 backup_dir="$test_root/backup"
 mkdir -p "$backup_dir"
@@ -614,46 +599,5 @@ if clang_tidy="$(find_llvm_tool clang-tidy)"; then
 else
   skip "clang-tidy is not installed"
 fi
-
-mkdir -p "$test_root/templates"
-for template in python node rust go shell; do
-  cp -R "$repo_dir/templates/$template" "$test_root/templates/$template"
-done
-mkdir -p "$test_root/tool-cache"
-
-if command -v python3 >/dev/null 2>&1; then
-  python="$(command -v python3)"
-  if ! "$python" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
-    if command -v uv >/dev/null 2>&1; then
-      if ! python="$(
-        UV_CACHE_DIR="$test_root/tool-cache/uv" uv python find '>=3.11'
-      )"; then
-        python=
-      fi
-    else
-      python=
-    fi
-  fi
-  if [[ -n "$python" ]]; then
-    make -C "$test_root/templates/python" check PYTHON="$python"
-  else
-    skip "Python 3.11 or newer is not installed"
-  fi
-fi
-
-command -v npm >/dev/null 2>&1 &&
-  npm_config_cache="$test_root/tool-cache/npm" \
-    npm_config_update_notifier=false \
-    make -C "$test_root/templates/node" check
-command -v cargo >/dev/null 2>&1 &&
-  CARGO_HOME="$test_root/tool-cache/cargo-home" \
-  CARGO_TARGET_DIR="$test_root/tool-cache/cargo-target" \
-    make -C "$test_root/templates/rust" check
-command -v go >/dev/null 2>&1 &&
-  GOCACHE="$test_root/tool-cache/go-build" \
-    GOPATH="$test_root/tool-cache/go" \
-    make -C "$test_root/templates/go" check
-make -C "$test_root/templates/shell" check
-pass "available project templates pass their checks"
 
 printf '1..%d\n' "$checks"
