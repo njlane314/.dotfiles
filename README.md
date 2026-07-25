@@ -15,9 +15,12 @@ project setup.
 │   ├── common.cli
 │   ├── work.cli
 │   ├── personal.cli
+│   ├── stow
 │   ├── macos.brewfile
 │   ├── linux.apt
 │   └── linux.pacman
+├── tests/
+│   └── check.sh
 ├── templates/
 │   ├── python/
 │   ├── node/
@@ -38,7 +41,9 @@ project setup.
 │       ├── local.bash.example
 │       └── prompt.bash
 ├── git/
-│   └── .config/git/config
+│   └── .config/git/
+│       ├── config
+│       └── pager
 ├── cpp/
 │   ├── .clang-format
 │   ├── .clang-tidy
@@ -48,7 +53,8 @@ project setup.
 ├── emacs/
 │   └── .emacs.d/
 │       ├── early-init.el
-│       └── init.el
+│       ├── init.el
+│       └── lisp/dotfiles-format.el
 ├── terminal/
 │   └── .config/terminal/
 │       ├── apply
@@ -79,6 +85,7 @@ The desired CLI state is explicit in `packages/`:
 packages/common.cli      baseline tools
 packages/work.cli        development tools
 packages/personal.cli    interactive personal tools
+packages/stow            dotfile packages accepted by install.sh
 packages/macos.brewfile  Homebrew / Linuxbrew package manifest
 packages/linux.apt       Debian / Ubuntu package manifest
 packages/linux.pacman    Arch Linux package manifest
@@ -130,6 +137,27 @@ Or:
 make install
 ```
 
+`packages/stow` is the single allowlist used by both commands. The installer
+rejects unknown names and option-like arguments before touching the target. Set
+`DOTFILES_TARGET` to install into another home-shaped directory; the directory
+is created when needed:
+
+```sh
+DOTFILES_TARGET=/tmp/dotfiles-home ./install.sh
+```
+
+Before Stow changes anything, the installer runs a dry preflight. Existing
+`.bashrc`, `.bash_profile`, and `.config/git/config` files are backed up on a
+successful install; if a later conflict prevents installation, those moves are
+rolled back. Other conflicts are left untouched and reported by Stow.
+
+Machine-local Bash settings and mutable Vim plugin, undo, backup, and swap data
+are excluded from Stow packages, so installing into another target does not copy
+private runtime state from this checkout. If an older install folded the Bash
+config or one of those Vim directories into the checkout, the next corresponding
+install preserves those contents while unfolding the legacy link into
+target-local paths.
+
 Install selected packages:
 
 ```sh
@@ -159,6 +187,25 @@ brew install stow
 # Debian / Ubuntu
 sudo apt install stow
 ```
+
+When the `terminal` or `wallpaper` package is installed directly into the real
+home directory on macOS, its `apply` helper also runs. Alternate
+`DOTFILES_TARGET` installs never change desktop settings.
+
+## Check
+
+Run the hermetic configuration and template checks with:
+
+```sh
+make check
+```
+
+This is also the default `make` target. It installs twice into a temporary home,
+checks Stow isolation and conflict rollback, loads the Bash, Vim, and tmux
+configuration, parses the Git, Emacs, and Clang configuration, exercises the
+Git pager and Emacs formatter, and runs each available project-template test
+suite. Test targets and language build caches stay under a temporary directory;
+the check does not change live dotfiles or apply macOS desktop settings.
 
 ## Keys
 
@@ -292,7 +339,7 @@ The `bash` package provides:
 ```
 
 Put machine-specific shell setup in `~/.config/bash/local.bash`. That file is
-ignored by Git.
+ignored by Git and excluded from Stow, so it remains local to one target.
 
 ## Terminal
 
@@ -328,10 +375,12 @@ The `git` package provides:
 
 ```text
 ~/.config/git/config
+~/.config/git/pager
 ```
 
-Git identity can stay in `~/.gitconfig`; the managed config adds pager, delta,
-diff, merge, and short aliases.
+Git identity can stay in `~/.gitconfig`; the managed config adds diff, merge,
+and short aliases. Its pager uses Delta when available and falls back to
+standard tools when Delta has not been installed yet.
 
 ## Emacs
 
@@ -340,6 +389,7 @@ The `emacs` package provides:
 ```text
 ~/.emacs.d/early-init.el
 ~/.emacs.d/init.el
+~/.emacs.d/lisp/dotfiles-format.el
 ```
 
 The configuration bootstraps `package.el` with GNU ELPA, NonGNU ELPA, and MELPA,
@@ -361,7 +411,9 @@ brew install emacs llvm ripgrep
 ```
 
 The C/C++ configuration uses `clangd` through Eglot when `clangd` is available
-and binds `C-c C-f` to format the current buffer with `clang-format`.
+and binds `C-c C-f` to format the current buffer with `clang-format`. Formatting
+is applied only after the formatter exits successfully, so a tool failure
+cannot erase the original buffer.
 
 ## Tmux
 
@@ -394,7 +446,9 @@ The `cpp` package provides:
 ```text
 ~/.clang-format
 ~/.clang-tidy
+~/.config/clangd/config.yaml
 ~/.config/gdb/gdbinit
+~/Library/Preferences/clangd/config.yaml
 ```
 
 `~/.clang-format` defines the formatting style used by `clang-format` and Vim's

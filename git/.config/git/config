@@ -1,8 +1,8 @@
 [core]
-	pager = delta
+	pager = ~/.config/git/pager
 
 [interactive]
-	diffFilter = delta --color-only
+	diffFilter = ~/.config/git/pager --color-only
 
 [delta]
 	navigate = true

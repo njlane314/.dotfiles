@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -n "${DOTFILES_EXPECTED_FILENAME:-}" ]]; then
+  expected="--assume-filename=$DOTFILES_EXPECTED_FILENAME"
+  if (($# != 1)) || [[ "$1" != "$expected" ]]; then
+    exit 8
+  fi
+fi
+
+if [[ "${DOTFILES_FORMATTER_RESULT:-success}" == "failure" ]]; then
+  exit 7
+fi
+
+tr '[:lower:]' '[:upper:]'

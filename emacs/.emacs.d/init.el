@@ -149,6 +149,9 @@
 
 ;;; Programming
 
+(add-to-list 'load-path (expand-file-name "lisp/" user-emacs-directory))
+(require 'dotfiles-format)
+
 (use-package compile
   :ensure nil
   :custom
@@ -163,15 +166,6 @@
   (("M-n" . flymake-goto-next-error)
    ("M-p" . flymake-goto-prev-error)
    ("C-c !" . flymake-show-buffer-diagnostics)))
-
-(defun dotfiles/clang-format-buffer ()
-  "Format the current buffer with clang-format."
-  (interactive)
-  (unless (executable-find "clang-format")
-    (user-error "clang-format executable not found"))
-  (let ((point (point)))
-    (call-process-region (point-min) (point-max) "clang-format" t t nil)
-    (goto-char (min point (point-max)))))
 
 (defun dotfiles/c-c++-setup ()
   "Apply local defaults for C and C++ buffers."

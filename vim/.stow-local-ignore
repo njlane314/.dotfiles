@@ -1,0 +1,10 @@
+\.git
+\.gitignore
+.+~
+\#.*\#
+\.\#.+
+^/\.vim/autoload$
+^/\.vim/backup$
+^/\.vim/plugged$
+^/\.vim/swap$
+^/\.vim/undo$

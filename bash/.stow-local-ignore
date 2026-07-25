@@ -1,6 +1,6 @@
-^\.stow-local-ignore$
 \.git
 \.gitignore
 .+~
 \#.*\#
 \.\#.+
+^/\.config/bash/local\.bash$

@@ -1,0 +1,7 @@
+\.git
+\.gitignore
+.+~
+\#.*\#
+\.\#.+
+^/\.emacs\.d/elpa$
+^/\.emacs\.d/var$

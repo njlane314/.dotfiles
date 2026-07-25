@@ -1,4 +1,8 @@
-PACKAGES ?= bash git vim cpp emacs tmux editorconfig terminal wallpaper
+PACKAGES ?= $(shell sed -e '/^[[:space:]]*$$/d' packages/stow)
+
+.PHONY: check
+check:
+	./tests/check.sh
 
 .PHONY: packages
 packages:
