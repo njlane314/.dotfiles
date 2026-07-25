@@ -170,6 +170,8 @@ function! s:llvm_tool(name) abort
 endfunction
 
 let g:ale_linters_explicit = 1
+let g:ale_virtualtext_cursor = 'disabled'
+let g:ale_hover_cursor = 0
 
 let g:ale_linters = {
 \   'c': ['clangd'],
@@ -182,13 +184,10 @@ let g:ale_fixers = {
 \   'cpp': ['clang-format'],
 \}
 
-let g:ale_fix_on_save = 0
-
 let g:ale_completion_enabled = 1
-let g:ale_completion_autoimport = 1
 
 let g:ale_c_clangd_options = '--enable-config'
-let g:ale_cpp_clangd_options = '--enable-config'
+let g:ale_cpp_clangd_options = g:ale_c_clangd_options
 
 let g:ale_c_clangd_executable = s:llvm_tool('clangd')
 let g:ale_cpp_clangd_executable = g:ale_c_clangd_executable

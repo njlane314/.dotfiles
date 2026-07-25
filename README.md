@@ -300,6 +300,10 @@ vim prefix: <leader> is Space
 ]d              next diagnostic
 ```
 
+ALE marks diagnostics in the gutter and under the relevant token, then echoes
+the current-line message. Inline diagnostic text and automatic hover are
+disabled; use `<leader>d` and `<leader>gh` when you want the full details.
+
 For a C++ solution inside a `cf-probs` checkout, Vim discovers the repository's
 `bin/probs` and `templates/solution.cpp` while walking up from the buffer. It
 then replaces the generic single-file build keys with:

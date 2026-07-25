@@ -23,6 +23,10 @@ call s:assert(&directory ==# $XDG_CACHE_HOME . '/vim/swap//',
       \ 'swap files escaped XDG_CACHE_HOME')
 call s:assert($PATH ==# $DOTFILES_ORIGINAL_PATH,
       \ 'Vim changed the global PATH')
+call s:assert(g:ale_virtualtext_cursor ==# 'disabled',
+      \ 'ALE virtual diagnostic text is enabled')
+call s:assert(!g:ale_hover_cursor,
+      \ 'ALE hover still appears automatically')
 
 let s:clangd = executable('/opt/homebrew/opt/llvm/bin/clangd')
       \ ? '/opt/homebrew/opt/llvm/bin/clangd'
@@ -53,6 +57,8 @@ execute 'edit ' . fnameescape($DOTFILES_CF_ROOT
       \ . '/problems/cf/71/A/solution.cpp')
 call s:assert(get(b:, 'current_compiler', '') ==# 'gcc',
       \ 'C++ did not load :compiler gcc')
+call s:assert(&l:textwidth == 0,
+      \ 'C++ comments are wrapped automatically')
 call s:assert(maparg(' b', 'n') ==# '',
       \ 'generic single-file build leaked into a solution buffer')
 call s:assert(&l:makeprg =~# '/bin/probs', 'makeprg does not use probs')

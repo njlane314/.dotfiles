@@ -7,7 +7,6 @@ endif
 let b:did_dotfiles_c_ftplugin = 1
 
 setlocal colorcolumn=100
-setlocal textwidth=100
 
 compiler gcc
 setlocal makeprg=make
@@ -28,7 +27,7 @@ nnoremap <buffer> <leader>m :make<CR>
 nnoremap <buffer> <leader>b :call <SID>build_current_file()<CR>
 nnoremap <buffer> <leader>x :execute '!' . shellescape(fnamemodify(expand('%:p'), ':r'), 1)<CR>
 
-let s:undo = 'setlocal colorcolumn< textwidth< makeprg< errorformat<'
+let s:undo = 'setlocal colorcolumn< makeprg< errorformat<'
       \ . ' | silent! execute "nunmap <buffer> <leader>m"'
       \ . ' | silent! execute "nunmap <buffer> <leader>b"'
       \ . ' | silent! execute "nunmap <buffer> <leader>x"'
