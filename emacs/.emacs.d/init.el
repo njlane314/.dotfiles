@@ -1,35 +1,17 @@
 ;;; init.el --- Personal Emacs configuration -*- lexical-binding: t; -*-
 
-;;; Package bootstrap
+;;; Package activation
 
 (when (boundp 'native-comp-async-report-warnings-errors)
   (setq native-comp-async-report-warnings-errors 'silent))
 
 (require 'package)
-
-(setq package-archives
-      '(("gnu" . "https://elpa.gnu.org/packages/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("melpa" . "https://melpa.org/packages/"))
-      package-archive-priorities
-      '(("gnu" . 10)
-        ("nongnu" . 5)
-        ("melpa" . 0)))
-
 (package-initialize)
 
-(unless package-archive-contents
-  (package-refresh-contents))
-
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
-
-(eval-when-compile
-  (require 'use-package))
-(require 'use-package)
-
-(setq use-package-always-ensure t
-      use-package-expand-minimally t)
+(unless (require 'use-package nil t)
+  (defmacro use-package (&rest _args)
+    "Ignore package declarations when `use-package' is unavailable."
+    nil))
 
 ;;; Files and paths
 
@@ -46,11 +28,14 @@
       save-place-file (expand-file-name "places" dotfiles/cache-dir)
       savehist-file (expand-file-name "history" dotfiles/cache-dir)
       recentf-save-file (expand-file-name "recentf" dotfiles/cache-dir)
-      create-lockfiles nil
       custom-file (expand-file-name "custom.el" dotfiles/cache-dir))
 
 (when (file-readable-p custom-file)
   (load custom-file nil t))
+
+(when (featurep 'use-package)
+  (setq use-package-always-ensure nil
+        use-package-expand-minimally t))
 
 ;;; Core editing defaults
 
@@ -76,6 +61,8 @@
 (electric-pair-mode 1)
 (column-number-mode 1)
 (global-hl-line-mode 1)
+(when (require 'editorconfig nil t)
+  (editorconfig-mode 1))
 
 (when (eq system-type 'darwin)
   (setq mac-command-modifier 'meta
@@ -100,20 +87,24 @@
 ;;; Completion and navigation
 
 (use-package vertico
+  :if (locate-library "vertico")
   :init
   (vertico-mode 1))
 
 (use-package marginalia
+  :if (locate-library "marginalia")
   :init
   (marginalia-mode 1))
 
 (use-package orderless
+  :if (locate-library "orderless")
   :custom
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
   (completion-category-overrides '((file (styles partial-completion)))))
 
 (use-package consult
+  :if (locate-library "consult")
   :bind
   (("C-s" . consult-line)
    ("C-x b" . consult-buffer)
@@ -122,6 +113,7 @@
    ("C-c r" . consult-ripgrep)))
 
 (use-package corfu
+  :if (locate-library "corfu")
   :custom
   (corfu-auto t)
   (corfu-cycle t)
@@ -130,6 +122,7 @@
   (global-corfu-mode 1))
 
 (use-package which-key
+  :if (locate-library "which-key")
   :custom
   (which-key-idle-delay 0.35)
   :init
@@ -143,11 +136,13 @@
   (project-vc-extra-root-markers '(".project" "compile_commands.json")))
 
 (use-package magit
+  :if (locate-library "magit")
   :bind
   (("C-c g" . magit-status)))
 
 (use-package exec-path-from-shell
-  :if (memq window-system '(mac ns x))
+  :if (and (memq window-system '(mac ns x))
+           (locate-library "exec-path-from-shell"))
   :config
   (exec-path-from-shell-initialize))
 
@@ -179,15 +174,21 @@
   (setq-local c-basic-offset 4
               tab-width 4
               indent-tabs-mode nil)
+  (when (boundp 'c-ts-mode-indent-offset)
+    (setq-local c-ts-mode-indent-offset 4))
   (local-set-key (kbd "C-c C-f") #'dotfiles/clang-format-buffer))
 
 (use-package cc-mode
   :ensure nil
   :hook
-  (c-mode-common . dotfiles/c-c++-setup))
+  ((c-mode-common c-ts-base-mode) . dotfiles/c-c++-setup))
 
 (use-package eglot
-  :if dotfiles/clangd-program
+  :if (and dotfiles/clangd-program (locate-library "eglot"))
+  :bind
+  (:map eglot-mode-map
+        ("C-c R" . eglot-rename)
+        ("C-c a" . eglot-code-actions))
   :hook
   ((c-mode c++-mode c-ts-mode c++-ts-mode) . eglot-ensure)
   :config
@@ -198,12 +199,15 @@
                     "--completion-style=detailed"))))
 
 (use-package markdown-mode
+  :if (locate-library "markdown-mode")
   :mode ("\\.md\\'" . markdown-mode))
 
 (use-package yaml-mode
+  :if (locate-library "yaml-mode")
   :mode "\\.ya?ml\\'")
 
 (use-package json-mode
+  :if (locate-library "json-mode")
   :mode "\\.json\\'")
 
 ;;; init.el ends here

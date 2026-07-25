@@ -12,7 +12,6 @@ bat
 eza
 zoxide
 direnv
-starship
 jq
 yq
 httpie

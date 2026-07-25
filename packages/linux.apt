@@ -12,7 +12,6 @@ bat
 eza
 zoxide
 direnv
-starship
 jq
 yq
 httpie
@@ -23,7 +22,6 @@ clang-tidy
 cppcheck
 git-delta
 lazygit
-difftastic
 tokei
 hyperfine
 just
@@ -31,10 +29,8 @@ watchexec
 entr
 sd
 tealdeer
-mise
 uv
 emacs
-atuin
 htop
 btop
 bottom

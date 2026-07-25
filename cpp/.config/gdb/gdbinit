@@ -1,8 +1,5 @@
-set pagination off
-set confirm off
 set print pretty on
 set print array on
-set print elements 0
-set disassemble-next-line on
+set print elements 200
 set history save on
 set history filename ~/.cache/gdb/history

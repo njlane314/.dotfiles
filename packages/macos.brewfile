@@ -16,8 +16,6 @@ brew "eza"
 # navigation / shell ergonomics
 brew "zoxide"
 brew "direnv"
-brew "starship"
-brew "atuin"
 
 # structured data / HTTP
 brew "jq"
@@ -27,7 +25,6 @@ brew "httpie"
 # git UX
 brew "git-delta"
 brew "lazygit"
-brew "difftastic"
 
 # monitoring / disk / process
 brew "htop"
@@ -47,7 +44,6 @@ brew "sd"
 brew "tealdeer"
 
 # language/runtime management
-brew "mise"
 brew "uv"
 
 # editors / language tooling

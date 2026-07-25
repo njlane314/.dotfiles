@@ -51,6 +51,9 @@ if filereadable(s:vim_plug)
   call plug#end()
 endif
 
+" Vim 9.1 ships EditorConfig as an optional package.
+silent! packadd editorconfig
+
 " ------------------------------------------------------------------
 " Core
 " ------------------------------------------------------------------

@@ -37,7 +37,6 @@ project setup.
 │   ├── .bashrc
 │   └── .config/bash/
 │       ├── aliases.bash
-│       ├── functions.bash
 │       ├── local.bash.example
 │       └── prompt.bash
 ├── git/
@@ -54,7 +53,9 @@ project setup.
 │   └── .emacs.d/
 │       ├── early-init.el
 │       ├── init.el
-│       └── lisp/dotfiles-format.el
+│       └── lisp/
+│           ├── dotfiles-format.el
+│           └── dotfiles-packages.el
 ├── terminal/
 │   └── .config/terminal/
 │       ├── apply
@@ -94,6 +95,17 @@ packages/linux.pacman    Arch Linux package manifest
 The bootstrap script uses the matching package-manager manifest for the current
 machine. Linux package managers install the packages available from their
 repositories and report names they cannot resolve.
+
+The bundled EditorConfig integration targets Vim 9.1 or newer and Emacs 30.1
+or newer. Older releases can still load the core settings, but do not provide
+that integration without an external plugin.
+
+Preview the selected package-manager action without changing the machine:
+
+```sh
+./bootstrap/bootstrap.sh --dry-run
+# or: make packages-dry-run
+```
 
 The same bootstrap is available through Make:
 
@@ -137,10 +149,18 @@ Or:
 make install
 ```
 
+Use `./install.sh --help` for the full command surface. A Stow-only preview does
+not create a missing target or move existing files:
+
+```sh
+./install.sh --dry-run
+# or: make install-dry-run
+```
+
 `packages/stow` is the single allowlist used by both commands. The installer
-rejects unknown names and option-like arguments before touching the target. Set
-`DOTFILES_TARGET` to install into another home-shaped directory; the directory
-is created when needed:
+rejects unknown package names and unrecognized options before touching the
+target. Set `DOTFILES_TARGET` to install into another home-shaped directory; the
+directory is created when needed:
 
 ```sh
 DOTFILES_TARGET=/tmp/dotfiles-home ./install.sh
@@ -195,9 +215,15 @@ brew install stow
 sudo apt install stow
 ```
 
-When the `terminal` or `wallpaper` package is installed directly into the real
-home directory on macOS, its `apply` helper also runs. Alternate
-`DOTFILES_TARGET` installs never change desktop settings.
+Installing links never changes graphical settings. Apply the installed Terminal
+profile selection and wallpaper explicitly on macOS with:
+
+```sh
+make apply-visuals
+```
+
+This is equivalent to `./install.sh --apply-visuals terminal wallpaper`.
+Alternate `DOTFILES_TARGET` installs never change desktop settings.
 
 ## Check
 
@@ -208,11 +234,12 @@ make check
 ```
 
 This is also the default `make` target. It installs twice into a temporary home,
-checks Stow isolation and conflict rollback, loads the Bash, Vim, and tmux
-configuration, parses the Git, Emacs, and Clang configuration, exercises the
-Git pager and Emacs formatter, and runs each available project-template test
-suite. Test targets and language build caches stay under a temporary directory;
-the check does not change live dotfiles or apply macOS desktop settings.
+checks Stow isolation, dry runs, and conflict rollback, loads the Bash, Vim, and
+tmux configuration, starts Emacs with package networking disabled, exercises
+EditorConfig, Git, formatting, and Clang-Tidy, and runs each available
+project-template test suite. Test targets and language build caches stay under
+a temporary directory; the check does not change live dotfiles or apply macOS
+desktop settings.
 
 ## Keys
 
@@ -270,6 +297,8 @@ C-c !     show diagnostics
 M-n       next diagnostic
 M-p       previous diagnostic
 C-c C-f   format C/C++ buffer
+C-c R     rename with Eglot
+C-c a     show Eglot code actions
 ```
 
 ```text
@@ -304,21 +333,6 @@ ALE marks diagnostics in the gutter and under the relevant token, then echoes
 the current-line message. Inline diagnostic text and automatic hover are
 disabled; use `<leader>d` and `<leader>gh` when you want the full details.
 
-For a C++ solution inside a `cf-probs` checkout, Vim discovers the repository's
-`bin/probs` and `templates/solution.cpp` while walking up from the buffer. It
-then replaces the generic single-file build keys with:
-
-```text
-<leader>r       update, then run probs test
-<leader>R       update, then run probs test --checked
-<leader>B       update, then print the submission bundle for inspection
-<leader>rn      rename symbol with ALE
-```
-
-Both `solutions/A.71.cpp` and
-`problems/cf/71/A/solution.cpp` layouts are recognized. Stress tests and
-submission remain explicit terminal commands.
-
 ## Vim
 
 The `vim` package provides:
@@ -326,8 +340,11 @@ The `vim` package provides:
 ```text
 ~/.vimrc
 ~/.vim/after/ftplugin/c.vim
-~/.vim/after/ftplugin/cpp.vim
 ```
+
+The shared C/C++ ftplugin uses Vim's GCC compiler parser, keeps comments from
+wrapping automatically, and provides the same build keys in every repository.
+Vim's bundled EditorConfig support applies project and global indentation rules.
 
 After installing the package, install Vim plugins:
 
@@ -363,13 +380,15 @@ The `bash` package provides:
 ~/.bash_profile
 ~/.bashrc
 ~/.config/bash/aliases.bash
-~/.config/bash/functions.bash
 ~/.config/bash/local.bash.example
 ~/.config/bash/prompt.bash
 ```
 
 Put machine-specific shell setup in `~/.config/bash/local.bash`. That file is
 ignored by Git and excluded from Stow, so it remains local to one target.
+Interactive shells append and reload history at each prompt, so commands remain
+visible across tmux panes. The lightweight zoxide and direnv hooks activate when
+their executables are installed; the prompt itself remains plain Bash.
 
 ## Terminal
 
@@ -380,14 +399,15 @@ The `terminal` package provides:
 ~/.config/terminal/apply
 ```
 
-On macOS, `style` contains the Apple Terminal profile name to use. The default
-is `Basic`, the standard white Terminal style. Apply it with:
+On macOS, `style` contains the Apple Terminal profile name to select. The default
+is the built-in `Basic` profile. Apply it with:
 
 ```sh
 ~/.config/terminal/apply
 ```
 
-Applying the profile opens Terminal.app if it is not already running.
+Applying the profile opens Terminal.app if it is not already running. The file
+selects a profile; it does not replace or import Terminal's profile database.
 
 ## Wallpaper
 
@@ -399,8 +419,8 @@ The `wallpaper` package provides:
 ```
 
 On macOS, `apply` sets `desktop.webp` as the picture for every connected
-display's Desktop. The bootstrap script reapplies it after each successful
-macOS package bootstrap.
+display's Desktop. Package bootstrap and link installation leave it unchanged
+until this helper or `make apply-visuals` is run explicitly.
 
 ## Git
 
@@ -423,11 +443,13 @@ The `emacs` package provides:
 ~/.emacs.d/early-init.el
 ~/.emacs.d/init.el
 ~/.emacs.d/lisp/dotfiles-format.el
+~/.emacs.d/lisp/dotfiles-packages.el
 ```
 
-The configuration bootstraps `package.el` with GNU ELPA, NonGNU ELPA, and MELPA,
-then installs its declared packages on first launch, which needs network access.
-To install packages from the command line after stowing the package:
+Normal startup activates installed packages but never refreshes archives or
+installs anything, so it remains usable offline and degrades cleanly when an
+optional package is missing. Provision the external packages explicitly after
+stowing the package:
 
 ```sh
 make emacs-packages
@@ -485,8 +507,9 @@ The `cpp` package provides:
 `~/.clang-format` defines the formatting style used by `clang-format` and Vim's
 `<leader>f` mapping.
 
-`~/.clang-tidy` enables Clang-Tidy checks for common bug, performance,
-modernization, readability, and C++ Core Guidelines diagnostics.
+`~/.clang-tidy` enables analyzer, bug-finding, and performance checks. Broad
+style-only modernization, readability, and C++ Core Guidelines families remain
+disabled.
 
 Project compilation flags belong in each repository's `compile_flags.txt` or
 `compile_commands.json`; the portable dotfiles do not inject project paths or a
@@ -505,4 +528,6 @@ The `editorconfig` package provides:
 
 It sets UTF-8, LF line endings, final newlines, trailing-whitespace trimming,
 two-space defaults, and four-space overrides for C, C++, Python, Rust, and
-related source files.
+related source files. Makefiles and `*.mk` files preserve tab recipes. Vim 9.1+
+and Emacs 30.1+ both enable their bundled EditorConfig support; no extra editor
+plugin is needed.

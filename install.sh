@@ -4,6 +4,45 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 target_dir="${DOTFILES_TARGET:-$HOME}"
 package_file="$repo_dir/packages/stow"
+dry_run=0
+apply_visuals=0
+requested_packages=()
+
+usage() {
+  cat <<'EOF'
+Usage: ./install.sh [OPTIONS] [PACKAGE...]
+
+Install all managed dotfile packages, or only the packages named on the
+command line.
+
+Options:
+  -h, --help       show this help and exit
+  --dry-run        preview Stow operations without changing the target
+  --apply-visuals  apply Terminal and wallpaper settings after installation
+
+DOTFILES_TARGET selects an alternate home-shaped target. Visual settings are
+applied only to the real home directory on macOS.
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --dry-run)
+      dry_run=1
+      ;;
+    --apply-visuals)
+      apply_visuals=1
+      ;;
+    *)
+      requested_packages+=("$1")
+      ;;
+  esac
+  shift
+done
 
 if ! command -v stow >/dev/null 2>&1; then
   cat >&2 <<'EOF'
@@ -26,10 +65,10 @@ while IFS= read -r package; do
   [[ -n "$package" ]] && available_packages+=("$package")
 done <"$package_file"
 
-if (($# == 0)); then
+if ((${#requested_packages[@]} == 0)); then
   packages=("${available_packages[@]}")
 else
-  packages=("$@")
+  packages=("${requested_packages[@]}")
 fi
 
 package_is_available() {
@@ -48,9 +87,52 @@ for package in "${packages[@]}"; do
   fi
 done
 
+home_dir="$(cd -- "$HOME" && pwd -P)"
+
+has_package() {
+  local package
+  for package in "${packages[@]}"; do
+    [[ "$package" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+if ((dry_run)); then
+  simulation_target="$target_dir"
+  temporary_target=
+
+  if [[ -d "$simulation_target" ]]; then
+    simulation_target="$(cd -- "$simulation_target" && pwd -P)"
+    target_dir="$simulation_target"
+  else
+    temporary_target="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-install.XXXXXX")"
+    simulation_target="$temporary_target"
+    printf 'Would create target: %s\n' "$target_dir"
+  fi
+
+  cd "$repo_dir"
+  if ! stow_output="$(
+    stow --target="$simulation_target" --restow --no-folding \
+      --simulate --verbose=1 "${packages[@]}" 2>&1
+  )"; then
+    [[ -n "$temporary_target" ]] && rmdir "$temporary_target"
+    printf '%s\n' "$stow_output" >&2
+    printf 'Stow dry run failed; no links were installed.\n' >&2
+    exit 1
+  fi
+  [[ -n "$stow_output" ]] && printf '%s\n' "$stow_output"
+  [[ -n "$temporary_target" ]] && rmdir "$temporary_target"
+
+  printf 'Would install packages: %s\n' "${packages[*]}"
+  if ((apply_visuals)) && [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]]; then
+    has_package terminal && printf 'Would apply Terminal settings.\n'
+    has_package wallpaper && printf 'Would apply desktop wallpaper.\n'
+  fi
+  exit 0
+fi
+
 mkdir -p -- "$target_dir"
 target_dir="$(cd -- "$target_dir" && pwd -P)"
-home_dir="$(cd -- "$HOME" && pwd -P)"
 vim_data_home="$target_dir/.local/share"
 vim_state_home="$target_dir/.local/state"
 vim_cache_home="$target_dir/.cache"
@@ -60,14 +142,6 @@ if [[ "$target_dir" == "$home_dir" ]]; then
   [[ ${XDG_STATE_HOME:-} == /* ]] && vim_state_home="$XDG_STATE_HOME"
   [[ ${XDG_CACHE_HOME:-} == /* ]] && vim_cache_home="$XDG_CACHE_HOME"
 fi
-
-has_package() {
-  local package
-  for package in "${packages[@]}"; do
-    [[ "$package" == "$1" ]] && return 0
-  done
-  return 1
-}
 
 rollback_sources=()
 rollback_targets=()
@@ -424,12 +498,22 @@ if has_package emacs; then
   mkdir -p "$target_dir/.emacs.d"/{elpa,var/auto-save,var/backup}
 fi
 
-if has_package terminal && [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]]; then
+if ((apply_visuals)) && has_package terminal &&
+  [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]]
+then
   "$target_dir/.config/terminal/apply"
 fi
 
-if has_package wallpaper && [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]]; then
+if ((apply_visuals)) && has_package wallpaper &&
+  [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]]
+then
   "$target_dir/.config/wallpaper/apply"
 fi
 
 printf 'Installed packages: %s\n' "${packages[*]}"
+
+if ((!apply_visuals)) && [[ "$(uname -s)" == Darwin && "$target_dir" == "$home_dir" ]] &&
+  { has_package terminal || has_package wallpaper; }
+then
+  printf 'Visual settings were not applied; use --apply-visuals when wanted.\n'
+fi

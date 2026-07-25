@@ -8,12 +8,24 @@ check:
 packages:
 	./bootstrap/bootstrap.sh
 
+.PHONY: packages-dry-run
+packages-dry-run:
+	./bootstrap/bootstrap.sh --dry-run
+
 .PHONY: bootstrap
 bootstrap: packages
 
 .PHONY: install
 install:
 	./install.sh $(PACKAGES)
+
+.PHONY: install-dry-run
+install-dry-run:
+	./install.sh --dry-run $(PACKAGES)
+
+.PHONY: apply-visuals
+apply-visuals:
+	./install.sh --apply-visuals terminal wallpaper
 
 .PHONY: vim-plug
 vim-plug:
@@ -28,8 +40,8 @@ vim-plugins:
 
 .PHONY: emacs-packages
 emacs-packages:
-	emacs --batch -l "$$HOME/.emacs.d/init.el" \
-		--eval '(message "Emacs packages installed")'
+	emacs --batch -Q -L "$$HOME/.emacs.d/lisp" \
+		-l dotfiles-packages --eval '(dotfiles/install-packages)'
 
 .PHONY: tmux-reload
 tmux-reload:

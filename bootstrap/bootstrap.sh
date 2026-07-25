@@ -4,6 +4,37 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 packages_dir="$repo_dir/packages"
 os="$(uname -s)"
+dry_run=0
+
+usage() {
+  cat <<'EOF'
+Usage: ./bootstrap/bootstrap.sh [OPTIONS]
+
+Install the package manifest for the available package manager.
+
+Options:
+  -h, --help  show this help and exit
+  --dry-run   show the selected package operation without running it
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --dry-run)
+      dry_run=1
+      ;;
+    *)
+      printf 'Unknown bootstrap option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
 
 read_package_file() {
   local file="$1"
@@ -101,11 +132,12 @@ find_brew() {
 }
 
 if find_brew; then
-  brew bundle --file="$packages_dir/macos.brewfile"
-  if [[ "$os" == Darwin ]]; then
-    "$repo_dir/wallpaper/.config/wallpaper/apply" \
-      "$repo_dir/wallpaper/.config/wallpaper/desktop.webp"
+  if ((dry_run)); then
+    printf 'Would reconcile Homebrew packages from: %s\n' \
+      "$packages_dir/macos.brewfile"
+    exit 0
   fi
+  brew bundle --file="$packages_dir/macos.brewfile"
   exit 0
 fi
 
@@ -120,11 +152,21 @@ EOF
 fi
 
 if [[ "$os" == Linux ]] && command -v apt-get >/dev/null 2>&1; then
+  if ((dry_run)); then
+    printf 'Would update apt metadata and install packages from: %s\n' \
+      "$packages_dir/linux.apt"
+    exit 0
+  fi
   install_apt_packages
   exit 0
 fi
 
 if [[ "$os" == Linux ]] && command -v pacman >/dev/null 2>&1; then
+  if ((dry_run)); then
+    printf 'Would install available pacman packages from: %s\n' \
+      "$packages_dir/linux.pacman"
+    exit 0
+  fi
   install_pacman_packages
   exit 0
 fi

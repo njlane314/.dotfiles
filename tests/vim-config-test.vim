@@ -2,7 +2,7 @@ set nomore
 
 function! s:assert(condition, message) abort
   if !a:condition
-    echom 'Vim Codeforces check failed: ' . a:message
+    echom 'Vim config check failed: ' . a:message
     cquit 1
   endif
 endfunction
@@ -53,50 +53,29 @@ call s:assert(g:ale_c_clangformat_use_global,
 call s:assert(maparg(' rn', 'n') ==# ':ALERename<CR>',
       \ 'ALE rename is not mapped to <leader>rn')
 
-execute 'edit ' . fnameescape($DOTFILES_CF_ROOT
-      \ . '/problems/cf/71/A/solution.cpp')
+execute 'edit ' . fnameescape($DOTFILES_VIM_HOME . '/project/main.cpp')
 call s:assert(get(b:, 'current_compiler', '') ==# 'gcc',
       \ 'C++ did not load :compiler gcc')
+call s:assert(&l:makeprg ==# 'make', 'C++ makeprg is not make')
+call s:assert(maparg(' b', 'n') !=# '',
+      \ 'the C++ single-file build mapping is missing')
 call s:assert(&l:textwidth == 0,
       \ 'C++ comments are wrapped automatically')
-call s:assert(maparg(' b', 'n') ==# '',
-      \ 'generic single-file build leaked into a solution buffer')
-call s:assert(&l:makeprg =~# '/bin/probs', 'makeprg does not use probs')
-silent make
-call s:assert(v:shell_error == 0, ':make failed')
-
-call append('$', '// update must save this line')
-call feedkeys("\<Space>r", 'xt')
-call s:assert(v:shell_error == 0, '<leader>r failed')
-call s:assert(!&modified, '<leader>r did not update the buffer')
-call feedkeys("\<Space>R", 'xt')
-call s:assert(v:shell_error == 0, '<leader>R failed')
-call feedkeys("\<Space>B", 'xt')
-call s:assert(v:shell_error == 0, '<leader>B failed')
-
-let $DOTFILES_CF_FAIL = '1'
-call feedkeys("\<Space>r", 'xt')
-call s:assert(v:shell_error == 7,
-      \ '<leader>r masked the repository command failure')
-let $DOTFILES_CF_FAIL = '0'
+call s:assert(&l:shiftwidth == 4,
+      \ 'EditorConfig did not apply the C++ indentation')
 
 set filetype=text
-call s:assert(maparg(' r', 'n') ==# '',
-      \ 'Codeforces mapping leaked after changing filetype')
-call s:assert(!exists('b:probs_executable'),
-      \ 'probs executable leaked after changing filetype')
+call s:assert(maparg(' b', 'n') ==# '',
+      \ 'the C++ build mapping leaked after changing filetype')
 call s:assert(!exists('b:dotfiles_compile_cmd'),
-      \ 'generic compiler command leaked after changing filetype')
-call s:assert(&l:textwidth == 0,
-      \ 'C++ textwidth leaked after changing filetype')
-execute 'edit ' . fnameescape($DOTFILES_CF_ROOT . '/solutions/B.72.cpp')
-call feedkeys("\<Space>r", 'xt')
-call s:assert(v:shell_error == 0, 'legacy <leader>r failed')
+      \ 'the C++ compiler command leaked after changing filetype')
 
-execute 'edit ' . fnameescape($DOTFILES_CF_ROOT . '/tools/utility.cpp')
-call s:assert(maparg(' r', 'n') ==# '',
-      \ 'workbench implementation source received probs mappings')
-call s:assert(&l:makeprg ==# 'make',
-      \ 'generic C++ makeprg was replaced by probs')
+execute 'edit ' . fnameescape($DOTFILES_VIM_HOME . '/project/data.json')
+call s:assert(&l:expandtab && &l:shiftwidth == 2,
+      \ 'EditorConfig did not apply JSON indentation')
+
+execute 'edit ' . fnameescape($DOTFILES_VIM_HOME . '/project/base.mk')
+call s:assert(!&l:expandtab,
+      \ 'EditorConfig did not preserve Make recipe tabs')
 
 qall!
