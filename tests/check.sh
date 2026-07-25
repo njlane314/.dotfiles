@@ -76,31 +76,33 @@ for path in \
   .config/bash/aliases.bash \
   .config/git/config \
   .config/git/pager \
-  .config/clangd/config.yaml \
   .config/gdb/gdbinit \
   .editorconfig \
   .emacs.d/early-init.el \
   .emacs.d/init.el \
   .emacs.d/lisp/dotfiles-format.el \
   .tmux.conf \
-  .vimrc \
-  Library/Preferences/clangd/config.yaml
+  .vimrc
 do
   assert_link "$target_dir/$path"
 done
 
 for path in \
-  .vim/autoload \
-  .vim/backup \
-  .vim/plugged \
-  .vim/swap \
-  .vim/undo \
+  .local/share/vim/autoload \
+  .local/share/vim/plugged \
+  .local/state/vim/undo \
+  .cache/vim/backup \
+  .cache/vim/swap \
   .emacs.d/elpa \
   .emacs.d/var/auto-save \
-  .emacs.d/var/backup \
-  .emacs.d/var/lock
+  .emacs.d/var/backup
 do
   assert_empty_directory "$target_dir/$path"
+done
+
+for path in autoload backup plugged swap undo; do
+  [[ ! -e "$target_dir/.vim/$path" && ! -L "$target_dir/.vim/$path" ]] ||
+    fail "legacy Vim runtime path was recreated: $target_dir/.vim/$path"
 done
 
 [[ ! -e "$target_dir/.config/bash/local.bash" ]] ||
@@ -130,6 +132,23 @@ for runtime_dir in autoload plugged undo backup swap; do
     >"$migration_repo/vim/.vim/$runtime_dir/state"
 done
 
+isolated_vim_dir="$test_root/isolated-vim"
+DOTFILES_TARGET="$isolated_vim_dir" "$migration_repo/install.sh" vim \
+  >"$test_root/isolated-vim.out" 2>&1
+DOTFILES_TARGET="$isolated_vim_dir" "$migration_repo/install.sh" bash \
+  >"$test_root/isolated-bash.out" 2>&1
+for runtime_dir in autoload plugged undo backup swap; do
+  [[ -f "$migration_repo/vim/.vim/$runtime_dir/state" ]] ||
+    fail "alternate install moved checkout Vim state: $runtime_dir"
+done
+[[ -z "$(find "$isolated_vim_dir" -type f -name state -print -quit)" ]] ||
+  fail "alternate install copied checkout Vim state"
+[[ -f "$migration_repo/bash/.config/bash/local.bash" ]] ||
+  fail "alternate install moved checkout Bash local config"
+[[ ! -e "$isolated_vim_dir/.config/bash/local.bash" ]] ||
+  fail "alternate install copied checkout Bash local config"
+pass "alternate installs cannot consume checkout-local state"
+
 legacy_bash_dir="$test_root/legacy-bash"
 mkdir -p "$legacy_bash_dir"
 legacy_bash_parent="$(cd -- "$legacy_bash_dir" && pwd -P)"
@@ -139,7 +158,8 @@ legacy_bash_link="$(
     "$migration_bash_source" "$legacy_bash_parent"
 )"
 ln -s "$legacy_bash_link" "$legacy_bash_dir/.config"
-if ! DOTFILES_TARGET="$legacy_bash_dir" "$migration_repo/install.sh" bash \
+if ! HOME="$legacy_bash_dir" DOTFILES_TARGET="$legacy_bash_dir" \
+  "$migration_repo/install.sh" bash \
   >"$test_root/legacy-bash.out" 2>&1
 then
   cat "$test_root/legacy-bash.out" >&2
@@ -161,7 +181,8 @@ legacy_vim_link="$(
     "$migration_vim_source" "$legacy_vim_parent"
 )"
 ln -s "$legacy_vim_link" "$legacy_vim_dir/.vim"
-if ! DOTFILES_TARGET="$legacy_vim_dir" "$migration_repo/install.sh" vim \
+if ! HOME="$legacy_vim_dir" DOTFILES_TARGET="$legacy_vim_dir" \
+  "$migration_repo/install.sh" vim \
   >"$test_root/legacy-vim.out" 2>&1
 then
   cat "$test_root/legacy-vim.out" >&2
@@ -170,11 +191,51 @@ fi
 [[ -d "$legacy_vim_dir/.vim" && ! -L "$legacy_vim_dir/.vim" ]] ||
   fail "a legacy folded Vim directory was not unfolded"
 for runtime_dir in autoload plugged undo backup swap; do
-  grep -Fx "$runtime_dir state" \
-    "$legacy_vim_dir/.vim/$runtime_dir/state" >/dev/null ||
+  case "$runtime_dir" in
+    autoload | plugged)
+      runtime_target="$legacy_vim_dir/.local/share/vim/$runtime_dir"
+      ;;
+    undo)
+      runtime_target="$legacy_vim_dir/.local/state/vim/undo"
+      ;;
+    backup | swap)
+      runtime_target="$legacy_vim_dir/.cache/vim/$runtime_dir"
+      ;;
+  esac
+  grep -Fx "$runtime_dir state" "$runtime_target/state" >/dev/null ||
     fail "legacy Vim $runtime_dir state was not preserved"
+  [[ ! -e "$legacy_vim_dir/.vim/$runtime_dir" &&
+    ! -L "$legacy_vim_dir/.vim/$runtime_dir" ]] ||
+    fail "legacy Vim $runtime_dir path was not removed"
 done
-pass "legacy Vim runtime links are unfolded without losing state"
+pass "legacy Vim runtime state moves to XDG directories without data loss"
+
+legacy_local_vim_dir="$test_root/legacy-local-vim"
+mkdir -p "$legacy_local_vim_dir/.vim"
+for runtime_dir in autoload plugged undo backup swap; do
+  mkdir -p "$legacy_local_vim_dir/.vim/$runtime_dir"
+  printf '%s local state\n' "$runtime_dir" \
+    >"$legacy_local_vim_dir/.vim/$runtime_dir/state"
+done
+HOME="$legacy_local_vim_dir" DOTFILES_TARGET="$legacy_local_vim_dir" \
+  "$repo_dir/install.sh" vim \
+  >"$test_root/legacy-local-vim.out" 2>&1
+for runtime_dir in autoload plugged undo backup swap; do
+  case "$runtime_dir" in
+    autoload | plugged)
+      runtime_target="$legacy_local_vim_dir/.local/share/vim/$runtime_dir"
+      ;;
+    undo)
+      runtime_target="$legacy_local_vim_dir/.local/state/vim/undo"
+      ;;
+    backup | swap)
+      runtime_target="$legacy_local_vim_dir/.cache/vim/$runtime_dir"
+      ;;
+  esac
+  grep -Fx "$runtime_dir local state" "$runtime_target/state" >/dev/null ||
+    fail "local legacy Vim $runtime_dir state was not preserved"
+done
+pass "previous-release local Vim state moves to XDG directories"
 
 legacy_git_dir="$test_root/legacy-git"
 mkdir -p "$legacy_git_dir/.config"
@@ -291,16 +352,23 @@ HOME="$target_dir" /bin/bash --noprofile --rcfile "$target_dir/.bashrc" \
 pass "Bash config loads in an isolated home"
 
 if command -v vim >/dev/null 2>&1; then
-  HOME="$target_dir" vim -Nu "$target_dir/.vimrc" -i NONE -n -es \
-    '+set nomore' '+filetype plugin indent on' '+qall'
+  vim_with_test_home() {
+    HOME="$target_dir" \
+      XDG_DATA_HOME="$target_dir/.local/share" \
+      XDG_STATE_HOME="$target_dir/.local/state" \
+      XDG_CACHE_HOME="$target_dir/.cache" \
+      vim "$@"
+  }
 
   if command -v cc >/dev/null 2>&1; then
     c_source="$test_root/hello !#% world.c"
     printf 'int main(void) { return 0; }\n' >"$c_source"
-    HOME="$target_dir" vim -Nu "$target_dir/.vimrc" -i NONE -n -es "$c_source" \
+    vim_with_test_home -Nu "$target_dir/.vimrc" -i NONE -n -es "$c_source" \
       '+set nomore' \
-      '+DotfilesBuild' '+if v:shell_error | cquit | endif' \
-      '+DotfilesRun' '+if v:shell_error | cquit | endif' \
+      '+call feedkeys("\<Space>b", "xt")' \
+      '+if v:shell_error | cquit | endif' \
+      '+call feedkeys("\<Space>x", "xt")' \
+      '+if v:shell_error | cquit | endif' \
       '+qall!'
     [[ -x "${c_source%.c}" ]] ||
       fail "Vim did not quote a C filename containing Ex metacharacters"
@@ -309,15 +377,58 @@ if command -v vim >/dev/null 2>&1; then
   if command -v c++ >/dev/null 2>&1; then
     cpp_source="$test_root/hello !#% world.cpp"
     printf 'int main() { return 0; }\n' >"$cpp_source"
-    HOME="$target_dir" vim -Nu "$target_dir/.vimrc" -i NONE -n -es "$cpp_source" \
+    vim_with_test_home -Nu "$target_dir/.vimrc" -i NONE -n -es "$cpp_source" \
       '+set nomore' \
-      '+DotfilesBuild' '+if v:shell_error | cquit | endif' \
-      '+DotfilesRun' '+if v:shell_error | cquit | endif' \
+      '+call feedkeys("\<Space>b", "xt")' \
+      '+if v:shell_error | cquit | endif' \
+      '+call feedkeys("\<Space>x", "xt")' \
+      '+if v:shell_error | cquit | endif' \
       '+qall!'
     [[ -x "${cpp_source%.cpp}" ]] ||
       fail "Vim did not quote a C++ filename containing Ex metacharacters"
   fi
-  pass "Vim config loads and build commands quote filenames"
+
+  cf_root="$test_root/cf workbench !#%"
+  mkdir -p \
+    "$cf_root/bin" \
+    "$cf_root/templates" \
+    "$cf_root/problems/cf/71/A" \
+    "$cf_root/solutions" \
+    "$cf_root/tools"
+  printf '#!/usr/bin/env bash\nset -euo pipefail\nprintf "%%s\\n" --- "$@" >>"$DOTFILES_CF_LOG"\nif [[ ${DOTFILES_CF_FAIL:-0} == 1 && ${1:-} == test ]]; then exit 7; fi\nif [[ ${1:-} == bundle ]]; then printf "int main() {}\\n"; fi\n' \
+    >"$cf_root/bin/probs"
+  chmod +x "$cf_root/bin/probs"
+  printf 'int main() { return 0; }\n' >"$cf_root/templates/solution.cpp"
+  printf 'int main() { return 0; }\n' \
+    >"$cf_root/problems/cf/71/A/solution.cpp"
+  printf 'int main() { return 0; }\n' >"$cf_root/solutions/B.72.cpp"
+  printf 'int utility() { return 0; }\n' >"$cf_root/tools/utility.cpp"
+
+  cf_log="$test_root/probs-arguments"
+  DOTFILES_CF_ROOT="$cf_root" \
+    DOTFILES_CF_LOG="$cf_log" \
+    DOTFILES_ORIGINAL_PATH="$PATH" \
+    vim_with_test_home -Nu "$target_dir/.vimrc" -i NONE -n -es \
+      -S "$repo_dir/tests/vim-codeforces-test.vim"
+
+  expected_cf_log="$test_root/expected-probs-arguments"
+  {
+    printf '%s\n' --- test \
+      "$cf_root/problems/cf/71/A/solution.cpp"
+    printf '%s\n' --- test \
+      "$cf_root/problems/cf/71/A/solution.cpp"
+    printf '%s\n' --- test --checked \
+      "$cf_root/problems/cf/71/A/solution.cpp"
+    printf '%s\n' --- bundle \
+      "$cf_root/problems/cf/71/A/solution.cpp"
+    printf '%s\n' --- test \
+      "$cf_root/problems/cf/71/A/solution.cpp"
+    printf '%s\n' --- test "$cf_root/solutions/B.72.cpp"
+  } >"$expected_cf_log"
+  cmp -s "$expected_cf_log" "$cf_log" ||
+    fail "Vim did not pass exact absolute solution paths to probs"
+
+  pass "Vim config loads, quotes builds, and delegates solutions to probs"
 else
   skip "Vim is not installed"
 fi

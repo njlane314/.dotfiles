@@ -151,12 +151,19 @@ Before Stow changes anything, the installer runs a dry preflight. Existing
 successful install; if a later conflict prevents installation, those moves are
 rolled back. Other conflicts are left untouched and reported by Stow.
 
-Machine-local Bash settings and mutable Vim plugin, undo, backup, and swap data
-are excluded from Stow packages, so installing into another target does not copy
-private runtime state from this checkout. If an older install folded the Bash
-config or one of those Vim directories into the checkout, the next corresponding
-install preserves those contents while unfolding the legacy link into
-target-local paths.
+Machine-local Bash settings and mutable Vim data are excluded from Stow packages,
+so installing into another target does not copy private runtime state from this
+checkout. By default, Vim plugins live under `~/.local/share/vim`, persistent
+undo under `~/.local/state/vim`, and backup and swap data under
+`~/.cache/vim`. For real-home installs, absolute `XDG_*_HOME` values override
+those roots; alternate targets remain self-contained.
+If an older install folded the Bash config or a Vim runtime directory into the
+checkout, the next corresponding install moves those contents to the target's
+local or XDG path while unfolding the legacy link. State left in real
+`~/.vim/{autoload,plugged,undo,backup,swap}` directories by an earlier installer
+is migrated too. If both a checkout directory and its real `~/.vim` counterpart
+contain data, installation stops before changing either copy so they can be
+reconciled explicitly.
 
 Install selected packages:
 
@@ -273,7 +280,6 @@ vim prefix: <leader> is Space
 <leader>e       file explorer
 <leader>p       file picker
 <leader><space> clear search highlight
-jk              leave insert mode
 
 <C-h>           move to left split
 <C-j>           move to lower split
@@ -285,6 +291,7 @@ jk              leave insert mode
 <leader>x       run current C/C++ output
 <leader>f       format/fix with ALE
 <leader>d       show diagnostic detail
+<leader>rn      rename symbol with ALE
 <leader>a       code action
 <leader>gd      go to definition
 <leader>gr      find references
@@ -292,6 +299,21 @@ jk              leave insert mode
 [d              previous diagnostic
 ]d              next diagnostic
 ```
+
+For a C++ solution inside a `cf-probs` checkout, Vim discovers the repository's
+`bin/probs` and `templates/solution.cpp` while walking up from the buffer. It
+then replaces the generic single-file build keys with:
+
+```text
+<leader>r       update, then run probs test
+<leader>R       update, then run probs test --checked
+<leader>B       update, then print the submission bundle for inspection
+<leader>rn      rename symbol with ALE
+```
+
+Both `solutions/A.71.cpp` and
+`problems/cf/71/A/solution.cpp` layouts are recognized. Stress tests and
+submission remain explicit terminal commands.
 
 ## Vim
 
@@ -309,6 +331,10 @@ After installing the package, install Vim plugins:
 make vim-plug
 make vim-plugins
 ```
+
+`make vim-plug` installs the manager under an absolute `XDG_DATA_HOME`, or
+`~/.local/share` when it is unset or relative. Plugins are stored beside it in
+the Vim data directory.
 
 Install the external tools Vim calls:
 
@@ -357,6 +383,8 @@ is `Basic`, the standard white Terminal style. Apply it with:
 ~/.config/terminal/apply
 ```
 
+Applying the profile opens Terminal.app if it is not already running.
+
 ## Wallpaper
 
 The `wallpaper` package provides:
@@ -366,8 +394,9 @@ The `wallpaper` package provides:
 ~/.config/wallpaper/apply
 ```
 
-On macOS, `apply` sets `desktop.webp` as the picture for every Desktop. The
-bootstrap script also applies it during first laptop setup.
+On macOS, `apply` sets `desktop.webp` as the picture for every connected
+display's Desktop. The bootstrap script reapplies it after each successful
+macOS package bootstrap.
 
 ## Git
 
@@ -393,8 +422,8 @@ The `emacs` package provides:
 ```
 
 The configuration bootstraps `package.el` with GNU ELPA, NonGNU ELPA, and MELPA,
-then installs its declared packages on first launch. To install packages from the
-command line after stowing the package:
+then installs its declared packages on first launch, which needs network access.
+To install packages from the command line after stowing the package:
 
 ```sh
 make emacs-packages
@@ -446,9 +475,7 @@ The `cpp` package provides:
 ```text
 ~/.clang-format
 ~/.clang-tidy
-~/.config/clangd/config.yaml
 ~/.config/gdb/gdbinit
-~/Library/Preferences/clangd/config.yaml
 ```
 
 `~/.clang-format` defines the formatting style used by `clang-format` and Vim's
@@ -456,6 +483,10 @@ The `cpp` package provides:
 
 `~/.clang-tidy` enables Clang-Tidy checks for common bug, performance,
 modernization, readability, and C++ Core Guidelines diagnostics.
+
+Project compilation flags belong in each repository's `compile_flags.txt` or
+`compile_commands.json`; the portable dotfiles do not inject project paths or a
+macOS SDK into clangd.
 
 `~/.config/gdb/gdbinit` sets practical GDB defaults and stores command history
 at `~/.cache/gdb/history`.

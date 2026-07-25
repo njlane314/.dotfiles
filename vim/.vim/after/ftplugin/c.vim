@@ -1,33 +1,40 @@
-" ~/.vim/after/ftplugin/c.vim
+" Shared C and C++ buffer settings. Vim's stock C++ ftplugin sources the C
+" ftplugin first, so this after-ftplugin is the common configuration point.
 
-setlocal tabstop=4
-setlocal shiftwidth=4
-setlocal softtabstop=4
-setlocal expandtab
+if exists('b:did_dotfiles_c_ftplugin')
+  finish
+endif
+let b:did_dotfiles_c_ftplugin = 1
 
-setlocal cindent
 setlocal colorcolumn=100
 setlocal textwidth=100
 
+compiler gcc
 setlocal makeprg=make
-setlocal errorformat=%f:%l:%c:\ %m,%f:%l:\ %m
 
-" C-specific compiler flags for quick single-file builds.
-let b:compile_cmd = 'cc -std=c17 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O2'
+let b:dotfiles_compile_cmd = (&l:filetype ==# 'cpp'
+      \ ? 'c++ -std=gnu++20' : 'cc -std=c17')
+      \ . ' -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O2'
 
 function! s:build_current_file() abort
+  update
   let l:source = expand('%:p')
   let l:output = fnamemodify(l:source, ':r')
-  execute '!' . b:compile_cmd . ' ' . shellescape(l:source, 1) . ' -o ' . shellescape(l:output, 1)
+  execute '!' . b:dotfiles_compile_cmd . ' '
+        \ . shellescape(l:source, 1) . ' -o ' . shellescape(l:output, 1)
 endfunction
-
-function! s:run_current_file() abort
-  execute '!' . shellescape(fnamemodify(expand('%:p'), ':r'), 1)
-endfunction
-
-command! -buffer DotfilesBuild call <SID>build_current_file()
-command! -buffer DotfilesRun call <SID>run_current_file()
 
 nnoremap <buffer> <leader>m :make<CR>
-nnoremap <buffer> <leader>b :DotfilesBuild<CR>
-nnoremap <buffer> <leader>x :DotfilesRun<CR>
+nnoremap <buffer> <leader>b :call <SID>build_current_file()<CR>
+nnoremap <buffer> <leader>x :execute '!' . shellescape(fnamemodify(expand('%:p'), ':r'), 1)<CR>
+
+let s:undo = 'setlocal colorcolumn< textwidth< makeprg< errorformat<'
+      \ . ' | silent! execute "nunmap <buffer> <leader>m"'
+      \ . ' | silent! execute "nunmap <buffer> <leader>b"'
+      \ . ' | silent! execute "nunmap <buffer> <leader>x"'
+      \ . ' | unlet! b:current_compiler b:did_dotfiles_c_ftplugin '
+      \ . 'b:dotfiles_compile_cmd'
+let b:undo_ftplugin = get(b:, 'undo_ftplugin', '')
+      \ . (empty(get(b:, 'undo_ftplugin', '')) ? '' : ' | ')
+      \ . s:undo
+unlet s:undo

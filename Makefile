@@ -17,7 +17,9 @@ install:
 
 .PHONY: vim-plug
 vim-plug:
-	curl -fLo "$$HOME/.vim/autoload/plug.vim" --create-dirs \
+	@data_home="$${XDG_DATA_HOME:-$$HOME/.local/share}"; \
+	case "$$data_home" in /*) ;; *) data_home="$$HOME/.local/share";; esac; \
+	curl -fLo "$$data_home/vim/autoload/plug.vim" --create-dirs \
 		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 
 .PHONY: vim-plugins

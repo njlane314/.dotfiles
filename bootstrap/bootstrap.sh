@@ -10,44 +10,23 @@ read_package_file() {
 
   if [[ ! -f "$file" ]]; then
     printf 'Missing package manifest: %s\n' "$file" >&2
-    exit 1
+    return 1
   fi
 
   sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$file"
 }
 
-manifest_packages() {
-  local file="$1"
-  local package
-
-  while IFS= read -r package; do
-    printf '%s\n' "$package"
-  done < <(read_package_file "$file")
-}
-
-apply_wallpaper() {
-  local apply="$repo_dir/wallpaper/.config/wallpaper/apply"
-  local image="$repo_dir/wallpaper/.config/wallpaper/desktop.webp"
-
-  [[ "$os" == Darwin ]] || return 0
-  [[ -x "$apply" && -f "$image" ]] || return 0
-
-  "$apply" "$image"
-}
-
-install_brew_packages() {
-  brew bundle --file="$packages_dir/macos.brewfile"
-}
-
 install_apt_packages() {
   local package
+  local package_list
   local packages=()
   local installable=()
   local missing=()
 
+  package_list="$(read_package_file "$packages_dir/linux.apt")" || return 1
   while IFS= read -r package; do
-    packages+=("$package")
-  done < <(manifest_packages "$packages_dir/linux.apt")
+    [[ -n "$package" ]] && packages+=("$package")
+  done <<<"$package_list"
 
   sudo apt-get update
 
@@ -73,13 +52,15 @@ EOF
 
 install_pacman_packages() {
   local package
+  local package_list
   local packages=()
   local installable=()
   local missing=()
 
+  package_list="$(read_package_file "$packages_dir/linux.pacman")" || return 1
   while IFS= read -r package; do
-    packages+=("$package")
-  done < <(manifest_packages "$packages_dir/linux.pacman")
+    [[ -n "$package" ]] && packages+=("$package")
+  done <<<"$package_list"
 
   for package in "${packages[@]}"; do
     if pacman -Si "$package" >/dev/null 2>&1; then
@@ -98,9 +79,33 @@ install_pacman_packages() {
   fi
 }
 
-if command -v brew >/dev/null 2>&1; then
-  install_brew_packages
-  apply_wallpaper
+find_brew() {
+  local candidate
+
+  if command -v brew >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for candidate in \
+    /opt/homebrew/bin/brew \
+    /usr/local/bin/brew \
+    /home/linuxbrew/.linuxbrew/bin/brew
+  do
+    if [[ -x "$candidate" ]]; then
+      eval "$("$candidate" shellenv)"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+if find_brew; then
+  brew bundle --file="$packages_dir/macos.brewfile"
+  if [[ "$os" == Darwin ]]; then
+    "$repo_dir/wallpaper/.config/wallpaper/apply" \
+      "$repo_dir/wallpaper/.config/wallpaper/desktop.webp"
+  fi
   exit 0
 fi
 
@@ -114,29 +119,13 @@ EOF
   exit 1
 fi
 
-if [[ "$os" == Linux && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-  install_brew_packages
-  apply_wallpaper
-  exit 0
-fi
-
-if [[ "$os" == Linux && -x /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-  install_brew_packages
-  apply_wallpaper
-  exit 0
-fi
-
 if [[ "$os" == Linux ]] && command -v apt-get >/dev/null 2>&1; then
   install_apt_packages
-  apply_wallpaper
   exit 0
 fi
 
 if [[ "$os" == Linux ]] && command -v pacman >/dev/null 2>&1; then
   install_pacman_packages
-  apply_wallpaper
   exit 0
 fi
 

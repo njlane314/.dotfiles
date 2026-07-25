@@ -37,11 +37,15 @@
 (defconst dotfiles/backup-dir (expand-file-name "backup/" dotfiles/cache-dir))
 (defconst dotfiles/auto-save-dir (expand-file-name "auto-save/" dotfiles/cache-dir))
 
-(dolist (dir (list dotfiles/cache-dir dotfiles/backup-dir dotfiles/auto-save-dir))
+(dolist (dir (list dotfiles/backup-dir dotfiles/auto-save-dir))
   (make-directory dir t))
 
 (setq backup-directory-alist `(("." . ,dotfiles/backup-dir))
       auto-save-file-name-transforms `((".*" ,dotfiles/auto-save-dir t))
+      auto-save-list-file-prefix (expand-file-name ".saves-" dotfiles/auto-save-dir)
+      save-place-file (expand-file-name "places" dotfiles/cache-dir)
+      savehist-file (expand-file-name "history" dotfiles/cache-dir)
+      recentf-save-file (expand-file-name "recentf" dotfiles/cache-dir)
       create-lockfiles nil
       custom-file (expand-file-name "custom.el" dotfiles/cache-dir))
 
@@ -152,6 +156,9 @@
 (add-to-list 'load-path (expand-file-name "lisp/" user-emacs-directory))
 (require 'dotfiles-format)
 
+(defconst dotfiles/clangd-program
+  (dotfiles/llvm-executable "clangd"))
+
 (use-package compile
   :ensure nil
   :custom
@@ -174,24 +181,20 @@
               indent-tabs-mode nil)
   (local-set-key (kbd "C-c C-f") #'dotfiles/clang-format-buffer))
 
-(defun dotfiles/eglot-ensure-if-clangd ()
-  "Start Eglot when clangd is available."
-  (when (executable-find "clangd")
-    (eglot-ensure)))
-
 (use-package cc-mode
   :ensure nil
   :hook
   (c-mode-common . dotfiles/c-c++-setup))
 
 (use-package eglot
-  :commands (eglot eglot-ensure)
+  :if dotfiles/clangd-program
   :hook
-  ((c-mode c++-mode c-ts-mode c++-ts-mode) . dotfiles/eglot-ensure-if-clangd)
+  ((c-mode c++-mode c-ts-mode c++-ts-mode) . eglot-ensure)
   :config
   (add-to-list 'eglot-server-programs
-               '((c-mode c++-mode c-ts-mode c++-ts-mode)
-                 . ("clangd" "--background-index" "--clang-tidy"
+               `((c-mode c++-mode c-ts-mode c++-ts-mode)
+                 . (,dotfiles/clangd-program
+                    "--background-index" "--clang-tidy"
                     "--completion-style=detailed"))))
 
 (use-package markdown-mode

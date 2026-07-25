@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+
+cursor="${1#--cursor=}"
+[[ "$cursor" =~ ^[0-9]+$ ]] || exit 8
 
 if [[ -n "${DOTFILES_EXPECTED_FILENAME:-}" ]]; then
-  expected="--assume-filename=$DOTFILES_EXPECTED_FILENAME"
-  if (($# != 1)) || [[ "$1" != "$expected" ]]; then
+  if (($# != 2)) ||
+    [[ "$2" != "--assume-filename=$DOTFILES_EXPECTED_FILENAME" ]]; then
     exit 8
   fi
+elif (($# != 1)); then
+  exit 8
 fi
 
 if [[ "${DOTFILES_FORMATTER_RESULT:-success}" == "failure" ]]; then
   exit 7
 fi
 
+printf '{ "Cursor": %s, "IncompleteFormat": false }\n' "$cursor"
 tr '[:lower:]' '[:upper:]'

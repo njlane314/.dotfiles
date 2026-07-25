@@ -1,45 +1,21 @@
 " ~/.vim/after/ftplugin/cpp.vim
 
-setlocal tabstop=4
-setlocal shiftwidth=4
-setlocal softtabstop=4
-setlocal expandtab
+if exists('b:did_dotfiles_cpp_ftplugin')
+  finish
+endif
+let b:did_dotfiles_cpp_ftplugin = 1
 
-setlocal cindent
-setlocal colorcolumn=100
-setlocal textwidth=100
-
-setlocal makeprg=make
-setlocal errorformat=%f:%l:%c:\ %m,%f:%l:\ %m
-
-" C++-specific compiler flags for quick single-file builds.
-let b:compile_cmd = 'c++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O2'
-
-function! s:build_current_file() abort
-  let l:source = expand('%:p')
-  let l:output = fnamemodify(l:source, ':r')
-  execute '!' . b:compile_cmd . ' ' . shellescape(l:source, 1) . ' -o ' . shellescape(l:output, 1)
-endfunction
-
-function! s:run_current_file() abort
-  execute '!' . shellescape(fnamemodify(expand('%:p'), ':r'), 1)
-endfunction
-
-command! -buffer DotfilesBuild call <SID>build_current_file()
-command! -buffer DotfilesRun call <SID>run_current_file()
-
-nnoremap <buffer> <leader>m :make<CR>
-nnoremap <buffer> <leader>b :DotfilesBuild<CR>
-nnoremap <buffer> <leader>x :DotfilesRun<CR>
-
-function! s:find_problem_root(path) abort
+function! s:find_solution_root(path) abort
   let l:dir = fnamemodify(a:path, ':p:h')
 
   while !empty(l:dir)
-    if filereadable(l:dir . '/bin/run')
-          \ && filereadable(l:dir . '/bin/bundle')
-          \ && filereadable(l:dir . '/template.cpp')
-      return l:dir
+    if executable(l:dir . '/bin/probs')
+          \ && filereadable(l:dir . '/templates/solution.cpp')
+      let l:relative = strpart(a:path, strlen(l:dir) + 1)
+      return l:relative =~# '^solutions/[A-Za-z][A-Za-z0-9]*\.[0-9]\+\.cpp$'
+            \ || l:relative
+            \ =~# '^problems/cf/[0-9]\+/[A-Za-z][A-Za-z0-9]*/solution\.cpp$'
+            \ ? l:dir : ''
     endif
 
     let l:parent = fnamemodify(l:dir, ':h')
@@ -52,21 +28,43 @@ function! s:find_problem_root(path) abort
   return ''
 endfunction
 
-let s:current_file = expand('%:p')
-let s:problem_root = s:find_problem_root(s:current_file)
+function! s:probs_command(arguments, makeprg) abort
+  let l:arguments = [b:probs_executable]
+        \ + a:arguments
+        \ + [expand('%:p')]
+  if a:makeprg
+    return join(map(l:arguments,
+          \ {_, argument -> escape(shellescape(argument), '%#')}), ' ')
+  endif
+  return join(map(
+        \ l:arguments, {_, argument -> shellescape(argument, 1)}), ' ')
+endfunction
 
-let s:is_cf_buffer = !empty(s:problem_root)
-      \ && stridx(s:current_file, s:problem_root . '/') == 0
+function! s:run_problem(arguments) abort
+  update
+  execute '!' . s:probs_command(a:arguments, 0)
+endfunction
 
-if s:is_cf_buffer
-  let b:problem_root = s:problem_root
-  let b:ale_linters = ['clangd']
-  let b:ale_c_build_dir = b:problem_root . '/build'
-  let b:ale_cpp_clangd_options = '--enable-config'
+let s:solution_root = s:find_solution_root(expand('%:p'))
+
+if !empty(s:solution_root)
+  let b:probs_executable = s:solution_root . '/bin/probs'
   setlocal colorcolumn=
-  execute 'setlocal makeprg=' . fnameescape(b:problem_root . '/bin/run') . '\ %:p'
+  let &l:makeprg = s:probs_command(['test'], 1)
 
-  nnoremap <buffer> <silent> <leader>r :write<CR>:execute '!' . shellescape(b:problem_root . '/bin/run') . ' ' . shellescape(expand('%:p'))<CR>
-  nnoremap <buffer> <silent> <leader>b :write<CR>:execute '!' . shellescape(b:problem_root . '/bin/bundle') . ' ' . shellescape(expand('%:p'))<CR>
-  nnoremap <buffer> <leader>m :write<CR>:make<CR>
+  silent! nunmap <buffer> <leader>m
+  silent! nunmap <buffer> <leader>b
+  silent! nunmap <buffer> <leader>x
+
+  nnoremap <buffer> <silent> <leader>r :call <SID>run_problem(['test'])<CR>
+  nnoremap <buffer> <silent> <leader>R :call <SID>run_problem(['test', '--checked'])<CR>
+  nnoremap <buffer> <silent> <leader>B :call <SID>run_problem(['bundle'])<CR>
+
+  let b:undo_ftplugin .=
+        \ ' | silent! execute "nunmap <buffer> <leader>r"'
+        \ . ' | silent! execute "nunmap <buffer> <leader>R"'
+        \ . ' | silent! execute "nunmap <buffer> <leader>B"'
+        \ . ' | unlet! b:probs_executable'
 endif
+
+let b:undo_ftplugin .= ' | unlet! b:did_dotfiles_cpp_ftplugin'
